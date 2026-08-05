@@ -566,13 +566,22 @@ draw_busybar (HwWIND This, const GRECT * area, const GRECT * clip)
  * matching it keeps our text the same size as the rest of the desktop in every
  * resolution.  Only the fallback to a real GDOS font stays on a point size.
  */
-static void
+static WORD
 sys_font_setup (WORD max_cell)
 {
+	/* the probe result never changes, so remember it per cell size */
+	static WORD known_cell[2] = { -1, -1 };
+	static WORD known_h[2];
 	WORD cw, ch, bw, bh;
-	WORD h = max_cell;
+	WORD h;
+	WORD i = (max_cell != vdi_dev.hchar); /* one slot each for the two sizes */
 
 	vst_font (vdi_handle, 1);
+
+	if (known_cell[i] == max_cell) {
+		vst_height (vdi_handle, known_h[i], &cw, &ch, &bw, &bh);
+		return bh;
+	}
 
 	/* vst_height() takes the CHARACTER height, which is smaller than the cell
 	 * the character sits in - 6 in the 8x8 face, 13 in the 8x16 one.  Asking
@@ -581,9 +590,14 @@ sys_font_setup (WORD max_cell)
 	 * stretched.  Walk the request down until the cell we are handed back
 	 * fits within max_cell.
 	 */
+	h = max_cell;
 	do {
 		vst_height (vdi_handle, h, &cw, &ch, &bw, &bh);
 	} while (bh > max_cell && --h > 1);
+
+	known_cell[i] = max_cell;
+	known_h[i]    = h;
+	return bh;
 }
 
 /* Cell height for the window furniture.  In the ST resolutions the system font
@@ -592,16 +606,21 @@ sys_font_setup (WORD max_cell)
  */
 #define UI_CELL_H  (vdi_dev.hchar > 8 ? vdi_dev.hchar : 6)
 
+/* top y for a text cell vertically centred in a box */
+#define VCENTER(y, h, cell)  ((y) + ((h) - (cell)) /2)
+
 static WORD
-ui_font_setup (void)
+ui_font_setup (WORD * cell_h)
 {
 	WORD dmy;
-	WORD fnt = vst_font (vdi_handle, (inc_xy < 16 ? 1 : fonts[header_font][0][0]));
+	WORD fnt = 1;
 
-	if (fnt == 1) {
-		sys_font_setup (UI_CELL_H);
+	/* sys_font_setup() selects the system font itself */
+	if (inc_xy >= 16
+	    && (fnt = vst_font (vdi_handle, fonts[header_font][0][0])) != 1) {
+		vst_height (vdi_handle, 14, &dmy,&dmy,&dmy, cell_h);
 	} else {
-		vst_height (vdi_handle, 14, &dmy,&dmy,&dmy,&dmy);
+		*cell_h = sys_font_setup (UI_CELL_H);
 	}
 	return fnt;
 }
@@ -611,8 +630,8 @@ static void
 draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 {
 	GRECT area, clip, rect;
-	WORD x_btn, dmy, fnt;
-	
+	WORD x_btn, dmy, fnt, cell, txt_y;
+
 	if (This->Base.isIcon || This->shaded) return;
 	
 	area = This->Work;
@@ -641,7 +660,8 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 	vsf_interior (vdi_handle, FIS_SOLID);
 	vsf_color    (vdi_handle, info_bgnd & 0x000F);
 	
-	fnt = ui_font_setup ();
+	fnt   = ui_font_setup (&cell);
+	txt_y = VCENTER (area.g_y, area.g_h, cell);
 	vst_color     (vdi_handle, info_fgnd);
 	hw_vst_map_mode  (vdi_handle, MAP_UNICODE);
 	vst_effects   (vdi_handle, TXT_NORMAL);
@@ -666,7 +686,7 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 				}
 				vs_clip_pxy (vdi_handle, p);
 				vst_alignment (vdi_handle, TA_LEFT, TA_TOP, &dmy, &dmy);
-				hw_v_ftext (vdi_handle, area.g_x +1, area.g_y -1, info);
+				hw_v_ftext (vdi_handle, area.g_x +1, txt_y, info);
 				if (!p_clip) {
 					vs_clip_off (vdi_handle);
 				}
@@ -689,11 +709,11 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 					p[1].p_x = p[1].p_y = This->IbarH -1;
 					draw_border ((GRECT*)p, G_WHITE, G_LBLACK, 1);
 					if (fnt != 1) {
-						sys_font_setup (UI_CELL_H);
+						cell = sys_font_setup (UI_CELL_H);
 					}
 					vst_alignment (vdi_handle, TA_CENTER, TA_TOP, &dmy, &dmy);
-					v_gtext (vdi_handle,
-					         p[0].p_x + This->IbarH /2, p[0].p_y +1, "\006");
+					v_gtext (vdi_handle, p[0].p_x + This->IbarH /2,
+					         VCENTER (p[0].p_y, This->IbarH -1, cell), "\006");
 				}
 				vs_clip_off (vdi_handle);
 				break;
@@ -716,7 +736,7 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 static void
 hwWind_setHSInfo (HwWIND This, const char * info)
 {
-	WORD dmy;
+	WORD dmy, cell;
 	PXY   p[2], clip[2];
 
 	if (This != hwWind_Top || This->Base.isIcon || This->shaded) {
@@ -746,11 +766,11 @@ hwWind_setHSInfo (HwWIND This, const char * info)
 	vsf_style    (vdi_handle, 4);
 	vsf_color    (vdi_handle, info_bgnd & 0x000F);
 	
-	ui_font_setup ();
+	ui_font_setup (&cell);
 	vst_color     (vdi_handle, info_fgnd);
 	hw_vst_map_mode  (vdi_handle, MAP_UNICODE);
 	vst_effects   (vdi_handle, TXT_NORMAL);
-	vst_alignment (vdi_handle, TA_LEFT, TA_DESCENT, &dmy, &dmy);
+	vst_alignment (vdi_handle, TA_LEFT, TA_TOP, &dmy, &dmy);
 
 	v_hide_c     (vdi_handle);
 	v_bar        (vdi_handle, &p[0].p_x);
@@ -769,7 +789,8 @@ hwWind_setHSInfo (HwWIND This, const char * info)
 		draw_busybar (This, &area, (GRECT*)clip);
 	}
 	
-	hw_v_ftext  (vdi_handle, p[0].p_x +1, p[1].p_y -1, info);
+	hw_v_ftext  (vdi_handle, p[0].p_x +1,
+	             VCENTER (p[0].p_y, p[1].p_y - p[0].p_y +1, cell), info);
 	v_show_c (vdi_handle, 1);
 	
 	vst_alignment (vdi_handle, TA_LEFT, TA_BASE, &dmy, &dmy);
@@ -1343,6 +1364,7 @@ draw_toolbar (HwWIND This, const GRECT * p_clip, BOOL all)
 				p[2].p_x--;
 			}
 			p[0] = p[1];
+			p[0].p_y = VCENTER (p[1].p_y, p[2].p_y - p[1].p_y +1, vdi_dev.hchar);
 			if (*edit->Text) {
 				p[2].p_x -= p[1].p_x -1;
 				p[2].p_y -= p[1].p_y -1;
