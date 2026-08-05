@@ -551,11 +551,40 @@ draw_busybar (HwWIND This, const GRECT * area, const GRECT * clip)
 }
 
 /*----------------------------------------------------------------------------*/
+/* Select the font for the window furniture (info bar, close gadget) and set
+ * its size.  Returns the font id actually selected.
+ *
+ * The VDI system font (id 1) is a set of fixed bitmaps, not a scalable one:
+ * 8x8 in the ST low/medium resolutions, 8x16 in ST high and above.  Asking for
+ * it by POINT size therefore picks whichever bitmap happens to sit nearest the
+ * requested size, which lands on the 8x16 face in the ST resolutions and makes
+ * the interface far too big.  Asking by PIXEL height instead selects exactly
+ * the face the resolution provides.
+ *
+ * vdi_dev.hchar is what graf_handle() reported for the AES system font, so
+ * matching it keeps our text the same size as the rest of the desktop in every
+ * resolution.  Only the fallback to a real GDOS font stays on a point size.
+ */
+static WORD
+ui_font_setup (void)
+{
+	WORD dmy;
+	WORD fnt = vst_font (vdi_handle, (inc_xy < 16 ? 1 : fonts[header_font][0][0]));
+
+	if (fnt == 1) {
+		vst_height (vdi_handle, vdi_dev.hchar, &dmy,&dmy,&dmy,&dmy);
+	} else {
+		vst_height (vdi_handle, 14, &dmy,&dmy,&dmy,&dmy);
+	}
+	return fnt;
+}
+
+/*----------------------------------------------------------------------------*/
 static void
 draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 {
 	GRECT area, clip, rect;
-	WORD x_btn, dmy, fnt, pnt;
+	WORD x_btn, dmy, fnt;
 	
 	if (This->Base.isIcon || This->shaded) return;
 	
@@ -585,14 +614,7 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 	vsf_interior (vdi_handle, FIS_SOLID);
 	vsf_color    (vdi_handle, info_bgnd & 0x000F);
 	
-	fnt = (inc_xy < 16 ? 1 : fonts[header_font][0][0]);
-	if ((fnt = vst_font (vdi_handle, fnt)) == 1) {
-		pnt = (inc_xy < 16 ? 11 : 12);
-		vst_point (vdi_handle, pnt, &dmy,&dmy,&dmy,&dmy);
-	} else {
-		pnt = 14;
-		vst_height (vdi_handle, pnt, &dmy,&dmy,&dmy,&dmy);
-	}
+	fnt = ui_font_setup ();
 	vst_color     (vdi_handle, info_fgnd);
 	vst_map_mode  (vdi_handle, MAP_UNICODE);
 	vst_effects   (vdi_handle, TXT_NORMAL);
@@ -640,9 +662,9 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 					p[1].p_x = p[1].p_y = This->IbarH -1;
 					draw_border ((GRECT*)p, G_WHITE, G_LBLACK, 1);
 					if (fnt != 1) {
-						vst_font  (vdi_handle, 1);
-						vst_point (vdi_handle, (inc_xy < 16 ? 11 : 12),
-						           &dmy,&dmy,&dmy,&dmy);
+						vst_font   (vdi_handle, 1);
+						vst_height (vdi_handle, vdi_dev.hchar,
+						            &dmy,&dmy,&dmy,&dmy);
 					}
 					vst_alignment (vdi_handle, TA_CENTER, TA_TOP, &dmy, &dmy);
 					v_gtext (vdi_handle,
@@ -699,12 +721,7 @@ hwWind_setHSInfo (HwWIND This, const char * info)
 	vsf_style    (vdi_handle, 4);
 	vsf_color    (vdi_handle, info_bgnd & 0x000F);
 	
-	dmy = (inc_xy < 16 ? 1 : fonts[header_font][0][0]);
-	if (vst_font (vdi_handle, dmy) == 1) {
-		vst_point (vdi_handle, (inc_xy < 16 ? 11 : 12), &dmy, &dmy, &dmy, &dmy);
-	} else {
-		vst_height (vdi_handle, 14, &dmy, &dmy, &dmy, &dmy);
-	}
+	ui_font_setup ();
 	vst_color     (vdi_handle, info_fgnd);
 	vst_map_mode  (vdi_handle, MAP_UNICODE);
 	vst_effects   (vdi_handle, TXT_NORMAL);
