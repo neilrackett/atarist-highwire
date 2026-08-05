@@ -567,10 +567,10 @@ draw_busybar (HwWIND This, const GRECT * area, const GRECT * clip)
  * resolution.  Only the fallback to a real GDOS font stays on a point size.
  */
 static void
-sys_font_setup (void)
+sys_font_setup (WORD max_cell)
 {
 	WORD cw, ch, bw, bh;
-	WORD h = vdi_dev.hchar;
+	WORD h = max_cell;
 
 	vst_font (vdi_handle, 1);
 
@@ -579,12 +579,18 @@ sys_font_setup (void)
 	 * for the cell height therefore overshoots and lands on the next face up,
 	 * or has the VDI scale one to fit, which is what made the status line look
 	 * stretched.  Walk the request down until the cell we are handed back
-	 * actually fits the one the AES is using.
+	 * fits within max_cell.
 	 */
 	do {
 		vst_height (vdi_handle, h, &cw, &ch, &bw, &bh);
-	} while (bh > vdi_dev.hchar && --h > 1);
+	} while (bh > max_cell && --h > 1);
 }
+
+/* Cell height for the window furniture.  In the ST resolutions the system font
+ * is 8 pixels tall and the info bar is cramped, so drop to the ROM's small
+ * face - the one the desktop labels icons with - to fit more of the URL in.
+ */
+#define UI_CELL_H  (vdi_dev.hchar > 8 ? vdi_dev.hchar : 6)
 
 static WORD
 ui_font_setup (void)
@@ -593,7 +599,7 @@ ui_font_setup (void)
 	WORD fnt = vst_font (vdi_handle, (inc_xy < 16 ? 1 : fonts[header_font][0][0]));
 
 	if (fnt == 1) {
-		sys_font_setup ();
+		sys_font_setup (UI_CELL_H);
 	} else {
 		vst_height (vdi_handle, 14, &dmy,&dmy,&dmy,&dmy);
 	}
@@ -683,9 +689,7 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 					p[1].p_x = p[1].p_y = This->IbarH -1;
 					draw_border ((GRECT*)p, G_WHITE, G_LBLACK, 1);
 					if (fnt != 1) {
-						vst_font   (vdi_handle, 1);
-						vst_height (vdi_handle, vdi_dev.hchar,
-						            &dmy,&dmy,&dmy,&dmy);
+						sys_font_setup (UI_CELL_H);
 					}
 					vst_alignment (vdi_handle, TA_CENTER, TA_TOP, &dmy, &dmy);
 					v_gtext (vdi_handle,
@@ -1347,7 +1351,11 @@ draw_toolbar (HwWIND This, const GRECT * p_clip, BOOL all)
 					p[2].p_x += p[1].p_x -1;
 					p[2].p_y += p[1].p_y -1;
 					vs_clip_pxy (vdi_handle, p +1);
-					sys_font_setup ();
+					/* Stays on the full system font rather than the small face
+					 * the info bar uses: the caret maths below steps in whole
+					 * 8 pixel cells, which only holds for that one.
+					 */
+					sys_font_setup (vdi_dev.hchar);
 					vst_effects   (vdi_handle, TXT_NORMAL);
 					vst_alignment (vdi_handle, TA_LEFT, TA_TOP, &dmy, &dmy);
 					vst_color     (vdi_handle, (actv ? G_BLACK : G_LBLACK));

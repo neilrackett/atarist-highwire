@@ -27,6 +27,7 @@ BOOL         cfg_AllowCookies = FALSE;
 BOOL         cfg_DropImages   = FALSE;
 BOOL         cfg_ViewImages   = TRUE;
 BOOL         cfg_FixedCmap    = FALSE;
+BOOL         cfg_GreyPalette  = TRUE;
 BOOL         cfg_UseCSS       = TRUE;
 BOOL         cfg_HotlistOpen  = FALSE;
 BOOL         cfg_AVWindow     = FALSE;
@@ -647,6 +648,7 @@ read_config(void)
 				{ "FONT_SIZE",            cfg_fntsize,   0 },
 				{ "FORCE_FRAMECTRL",      cfg_Func,      (long)menu_frm_ctrl    },
 				{ "GLOBAL_WINCYCLE",      cfg_BOOL,      (long)&cfg_GlobalCycle },
+				{ "GREY_PALETTE",         cfg_BOOL,      (long)&cfg_GreyPalette },
 				{ "HEADER",               cfg_font,      FA(header_font, 0, 0)  },
 				{ "HIGHWIRE",             cfg_up2date,   0 },
 				{ "HOTLIST_OPEN",         cfg_BOOL,      (long)&cfg_HotlistOpen },

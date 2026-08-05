@@ -99,10 +99,6 @@ main (int argc, char **argv)
 	 */
 	gdostype = vq_vgdos();
 	romvdi_init (gdostype);
-	if (!has_fsm_gdos) {
-		printf ("%s\n%s\n", _ERROR_SPEEDO_,
-		        "Falling back to the system font.");
-	}
 
 	nkc_init();
 	init_icons();
@@ -341,6 +337,7 @@ highwire_ex (void)
 		location_tidyup (TRUE);
 	}
 	hw_vst_unload_fonts (vdi_handle, 0);
+	color_restore    ();
 	v_clsvwk         (vdi_handle);
 }
 

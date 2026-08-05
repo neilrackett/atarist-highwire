@@ -12,6 +12,9 @@ typedef struct {
 } SRGB;
 static SRGB screen_colortab[256]; /* used to save colors */
 
+static WORD grey_saved[2][3];     /* palette entries 2 and 3 as we found them */
+static BOOL grey_applied = FALSE;
+
 /* tables predefined for fixed color map enabled, otherwise overwritten by the
  * values of the color map at start time
 */
@@ -122,7 +125,35 @@ save_colors(void)
 		color_FixedMap = TRUE;
 	}
 	/* else:  tables will be setup on request by color_tables() */
-	
+
+	/* ST medium resolution gives us four colours, and the VDI's default four
+	 * are white, black, red and green.  remap_color() below picks the nearest
+	 * by RGB distance, so a page using a dark background and dark text sends
+	 * both to black and the text disappears.
+	 *
+	 * Recolouring the two chromatic entries to greys turns the palette into a
+	 * luminance ramp - white, light grey, dark grey, black - which orders
+	 * page colours by brightness and keeps light-on-dark and dark-on-light
+	 * legible.  Indices 0 and 1 are left alone so G_WHITE and G_BLACK still
+	 * mean what the rest of the interface expects.
+	 *
+	 * Only for two planes: mono needs no help and sixteen colours has enough
+	 * range to cope on its own.
+	 */
+	if (cfg_GreyPalette && planes == 2) {
+		static const WORD grey[2] = { 667, 333 };  /* VDI units, 0..1000 */
+		for (i = 0; i < 2; i++) {
+			WORD coltab[3];
+			/* Keep the originals: the ST palette is global, so leaving the
+			 * desktop grey after we quit would not be ours to do.
+			 */
+			vq_color (vdi_handle, i + 2, 1, grey_saved[i]);
+			coltab[0] = coltab[1] = coltab[2] = grey[i];
+			vs_color (vdi_handle, i + 2, coltab);
+		}
+		grey_applied = TRUE;
+	}
+
 	for (i = 0; i < res_colors; i++) {
 		WORD coltab[3];
 		vq_color (vdi_handle, i, 1, coltab);
@@ -139,6 +170,23 @@ save_colors(void)
 		if ((i & 7) == 7) fprintf (f, "\n");
 		fclose (f);
 	}*/
+}
+
+
+/*==============================================================================
+ * Puts back whatever palette entries we overwrote.  The ST palette is global,
+ * so without this the desktop would stay grey after HighWire quits.
+*/
+void
+color_restore (void)
+{
+	if (grey_applied) {
+		WORD i;
+		for (i = 0; i < 2; i++) {
+			vs_color (vdi_handle, i + 2, grey_saved[i]);
+		}
+		grey_applied = FALSE;
+	}
 }
 
 
