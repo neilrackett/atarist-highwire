@@ -12,8 +12,10 @@ typedef struct {
 } SRGB;
 static SRGB screen_colortab[256]; /* used to save colors */
 
-static WORD grey_saved[2][3];     /* palette entries 2 and 3 as we found them */
-static BOOL grey_applied = FALSE;
+#define GREY_1ST  2  /* first pen recoloured to grey */
+#define GREY_PENS 2
+static WORD grey_saved[GREY_PENS][3]; /* those pens as we found them */
+BOOL color_GreyRamp = FALSE; /* TRUE while the grey palette is installed */
 
 /* tables predefined for fixed color map enabled, otherwise overwritten by the
  * values of the color map at start time
@@ -141,17 +143,20 @@ save_colors(void)
 	 * range to cope on its own.
 	 */
 	if (cfg_GreyPalette && planes == 2) {
-		static const WORD grey[2] = { 667, 333 };  /* VDI units, 0..1000 */
-		for (i = 0; i < 2; i++) {
+		/* raster.c's *_G2 dithers rely on this ramp: with the ST pen map it
+		 * puts hardware pixels 0..3 in luminance order white, 667, 333, black.
+		 */
+		static const WORD grey[GREY_PENS] = { 667, 333 };  /* VDI units, 0..1000 */
+		for (i = 0; i < GREY_PENS; i++) {
 			WORD coltab[3];
 			/* Keep the originals: the ST palette is global, so leaving the
 			 * desktop grey after we quit would not be ours to do.
 			 */
-			vq_color (vdi_handle, i + 2, 1, grey_saved[i]);
+			vq_color (vdi_handle, GREY_1ST + i, 1, grey_saved[i]);
 			coltab[0] = coltab[1] = coltab[2] = grey[i];
-			vs_color (vdi_handle, i + 2, coltab);
+			vs_color (vdi_handle, GREY_1ST + i, coltab);
 		}
-		grey_applied = TRUE;
+		color_GreyRamp = TRUE;
 	}
 
 	for (i = 0; i < res_colors; i++) {
@@ -180,12 +185,12 @@ save_colors(void)
 void
 color_restore (void)
 {
-	if (grey_applied) {
+	if (color_GreyRamp) {
 		WORD i;
-		for (i = 0; i < 2; i++) {
-			vs_color (vdi_handle, i + 2, grey_saved[i]);
+		for (i = 0; i < GREY_PENS; i++) {
+			vs_color (vdi_handle, GREY_1ST + i, grey_saved[i]);
 		}
-		grey_applied = FALSE;
+		color_GreyRamp = FALSE;
 	}
 }
 

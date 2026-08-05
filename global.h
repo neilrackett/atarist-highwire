@@ -18,12 +18,8 @@ extern VDI_Workstation  vdi_dev;
 #define planes         (vdi_dev.planes)
 /* TRUE when the screen has too few pens for the light/dark shades the
  * interface draws with.  Those are G_LWHITE and G_LBLACK, VDI pens 8 and 9,
- * so they need sixteen colours - four planes - to exist at all.
- *
- * This used to read (planes < 2), which is only ever true of a monochrome
- * screen.  ST medium resolution has two planes, so it took the full colour
- * path and painted page backgrounds and 3D edges with pen 8 on a screen whose
- * pens stop at 3, which came out black on black.
+ * so they need sixteen colours - four planes - to exist at all; ST medium's
+ * two planes stop at pen 3.
  */
 #define ignore_colours (planes < 4)
 
@@ -238,6 +234,7 @@ MAPAREA  new_maparea (const char * shape, const char * coords,
 
 extern BOOL color_FixedMap;
 void  color_mapsetup(void);
+extern BOOL color_GreyRamp; /* grey palette installed on a 2 plane screen */
 void  save_colors   (void);
 void  color_restore (void);
 WORD  remap_color   (long value);

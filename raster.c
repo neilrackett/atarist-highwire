@@ -7,6 +7,7 @@
 
 #include "global.h"
 #include "image_P.h"
+#include "romvdi.h"
 
 static ULONG cube216[216];
 static ULONG graymap[32];
@@ -75,6 +76,8 @@ raster_mono (IMGINFO info, void * _dst)
 #endif
 }
 
+static WORD pixel_val[256]; /* VDI colour index -> hardware pixel value */
+
 /*------------------------------------------------------------------------------
  * device independend, for unrecognized screen format.
  */
@@ -88,7 +91,8 @@ raster_stnd (IMGINFO info, void * _dst)
 	UWORD   mask  = info->PixMask;
 	UWORD   pixel = 0x8000;
 	do {
-		short   color = map[(UWORD)info->RowBuf[x >>16] & mask];
+		/* cnvpal_4_8() keeps the device pixel value in the top byte */
+		short   color = *(CHAR*)&map[(UWORD)info->RowBuf[x >>16] & mask];
 		UWORD * chunk = dst;
 		short   i     = planes;
 		do {
@@ -97,7 +101,83 @@ raster_stnd (IMGINFO info, void * _dst)
 			chunk +=  info->PgSize;
 			color >>= 1;
 		} while (--i);
-		
+
+		if (!(pixel >>= 1)) {
+			pixel = 0x8000;
+			dst++;
+		}
+		x += info->IncXfx;
+	} while (--width);
+}
+
+/*------------------------------------------------------------------------------
+ * Black/white dithers in the same standard format, so grey and true colour
+ * images survive on screens only the last-resort fallback matches.
+ */
+static void
+gscale_stnd (IMGINFO info, void * _dst)
+{
+	UWORD * dst   = _dst;
+	short   width = info->DthWidth;
+	size_t  x     = (info->IncXfx +1) /2;
+	short * buf   = info->DthBuf;
+	short   ins   = 0;
+	UWORD   pixel = 0x8000;
+	do {
+		short   color;
+		UWORD * chunk = dst;
+		short   i     = planes;
+		ins += *buf + (short)info->RowBuf[x >>16];
+		if (ins < 0x80) {
+			color = pixel_val[G_BLACK];
+		} else {
+			color = pixel_val[G_WHITE];
+			ins  -= 0xFF;
+		}
+		*(buf++) = (ins >>= 2);
+		do {
+			if (color & 1) *chunk |=  pixel;
+			else           *chunk &= ~pixel;
+			chunk +=  info->PgSize;
+			color >>= 1;
+		} while (--i);
+		if (!(pixel >>= 1)) {
+			pixel = 0x8000;
+			dst++;
+		}
+		x += info->IncXfx;
+	} while (--width);
+}
+
+/*------------------------------------------------------------------------------*/
+static void
+dither_stnd (IMGINFO info, void * _dst)
+{
+	UWORD * dst   = _dst;
+	short   width = info->DthWidth;
+	size_t  x     = (info->IncXfx +1) /2;
+	short * buf   = info->DthBuf;
+	short   ins   = 0;
+	UWORD   pixel = 0x8000;
+	do {
+		short   color;
+		UWORD * chunk = dst;
+		short   i     = planes;
+		CHAR  * rgb   = &info->RowBuf[(x >>16) *3];
+		ins += *buf + (WORD)rgb[0] *5 + (WORD)rgb[1] *9 + (WORD)rgb[2] *2;
+		if (ins < 2040) {
+			color = pixel_val[G_BLACK];
+		} else {
+			color = pixel_val[G_WHITE];
+			ins  -= 4080;
+		}
+		*(buf++) = (ins >>= 2);
+		do {
+			if (color & 1) *chunk |=  pixel;
+			else           *chunk &= ~pixel;
+			chunk +=  info->PgSize;
+			color >>= 1;
+		} while (--i);
 		if (!(pixel >>= 1)) {
 			pixel = 0x8000;
 			dst++;
@@ -283,6 +363,132 @@ dither_D2 (IMGINFO info, void * _dst)
 			*(dst++) = chunk;
 			*(dst++) = chunk;
 			chunk    = 0;
+			pixel    = 0x8000;
+		}
+		x += info->IncXfx;
+	} while (width);
+}
+
+/*------------------------------------------------------------------------------
+ * Variants of the above for when the grey ramp is installed (color_GreyRamp):
+ * dither into all four levels instead of black and white.  With the ramp the
+ * hardware pixel values 0..3 run white, light, dark, black - VDI pens 0,2,3,1
+ * - so the chosen level is the pixel value, bit 0 in the first plane word and
+ * bit 1 in the second.
+ */
+static void
+raster_G2 (IMGINFO info, void * _dst)
+{
+	UWORD * dst   = _dst;
+	short   width = info->DthWidth;
+	size_t  x     = (info->IncXfx +1) /2;
+	ULONG * map   = info->Pixel;
+	UWORD   mask  = info->PixMask;
+	short * buf   = info->DthBuf;
+	short   ins   = 0;
+	UWORD   pixel = 0x8000;
+	UWORD   ch_0  = 0;
+	UWORD   ch_1  = 0;
+	do {
+		ins += *buf + map[(short)info->RowBuf[x >>16] & mask];
+		if (ins < 2040) {
+			ch_1 |= pixel;
+			if (ins < 680) {
+				ch_0 |= pixel;
+			} else {
+				ins  -= 1360;
+			}
+		} else if (ins < 3400) {
+			ch_0 |= pixel;
+			ins  -= 2720;
+		} else {
+			ins  -= 4080;
+		}
+		*(buf++) = (ins >>= 2);
+		if (!--width || !(pixel >>= 1)) {
+			*(dst++) = ch_0;
+			*(dst++) = ch_1;
+			ch_0     = 0;
+			ch_1     = 0;
+			pixel    = 0x8000;
+		}
+		x += info->IncXfx;
+	} while (width);
+}
+
+/*------------------------------------------------------------------------------*/
+static void
+gscale_G2 (IMGINFO info, void * _dst)
+{
+	UWORD * dst   = _dst;
+	short   width = info->DthWidth;
+	size_t  x     = (info->IncXfx +1) /2;
+	short * buf   = info->DthBuf;
+	short   ins   = 0;
+	UWORD   pixel = 0x8000;
+	UWORD   ch_0  = 0;
+	UWORD   ch_1  = 0;
+	do {
+		ins += *buf + (short)info->RowBuf[x >>16];
+		if (ins < 0x80) {
+			ch_1 |= pixel;
+			if (ins < 0x2B) {
+				ch_0 |= pixel;
+			} else {
+				ins  -= 0x55;
+			}
+		} else if (ins < 0xD5) {
+			ch_0 |= pixel;
+			ins  -= 0xAA;
+		} else {
+			ins  -= 0xFF;
+		}
+		*(buf++) = (ins >>= 2);
+		if (!--width || !(pixel >>= 1)) {
+			*(dst++) = ch_0;
+			*(dst++) = ch_1;
+			ch_0     = 0;
+			ch_1     = 0;
+			pixel    = 0x8000;
+		}
+		x += info->IncXfx;
+	} while (width);
+}
+
+/*------------------------------------------------------------------------------*/
+static void
+dither_G2 (IMGINFO info, void * _dst)
+{
+	UWORD * dst   = _dst;
+	short   width = info->DthWidth;
+	size_t  x     = (info->IncXfx +1) /2;
+	short * buf   = info->DthBuf;
+	short   ins   = 0;
+	UWORD   pixel = 0x8000;
+	UWORD   ch_0  = 0;
+	UWORD   ch_1  = 0;
+	do {
+		CHAR  * rgb   = &info->RowBuf[(x >>16) *3];
+		ins += *buf + (WORD)rgb[0] *5 + (WORD)rgb[1] *9 + (WORD)rgb[2] *2;
+		if (ins < 2040) {
+			ch_1 |= pixel;
+			if (ins < 680) {
+				ch_0 |= pixel;
+			} else {
+				ins  -= 1360;
+			}
+		} else if (ins < 3400) {
+			ch_0 |= pixel;
+			ins  -= 2720;
+		} else {
+			ins  -= 4080;
+		}
+		*(buf++) = (ins >>= 2);
+		if (!--width || !(pixel >>= 1)) {
+			*(dst++) = ch_0;
+			*(dst++) = ch_1;
+			ch_0     = 0;
+			ch_1     = 0;
 			pixel    = 0x8000;
 		}
 		x += info->IncXfx;
@@ -1317,7 +1523,6 @@ dither_32z (IMGINFO info, void * _dst)
  *
  *   Palette Converter
  */
-static WORD pixel_val[256];
 
 /*----------------------------------------------------------------------------*/
 static void
@@ -1489,38 +1694,7 @@ rasterizer (UWORD depth, UWORD comps)
 		short sdepth;
 		BOOL  reverse, z_trail;
 
-		vq_scrninfo (vdi_handle, out);
-
-		/* vq_scrninfo() arrived with NVDI, and the plain ROM VDI does not
-		 * answer it - the array comes back holding something else entirely,
-		 * which decodes as 31 bits per pixel in an unknown layout and raised
-		 * "Unrecognized screen format!" on every ST.  Check the reply makes
-		 * sense and describe the screen ourselves when it does not.
-		 *
-		 * An ST/STE screen is always interleaved bitplanes, one plane per bit
-		 * of depth.  The VDI's colour indices are not the hardware pixel
-		 * values, though, so that mapping has to be supplied too: it is what
-		 * out[16..] carries and what pixel_val[] is taken from just below.
-		 */
-		if (out[0] < 0 || out[0] > 2 || out[2] < 1 || out[2] > 32) {
-			/* VDI colour index -> hardware pixel value.  The ST VDI puts white
-			 * first and black second, then the remaining colours in its own
-			 * order, so this is not the identity mapping.
-			 */
-			static const WORD st_pixel_16[16] =
-				{ 0, 15, 1, 2, 4, 6, 3, 5, 7, 8, 9, 10, 12, 14, 11, 13 };
-			static const WORD st_pixel_4[4] = { 0, 3, 1, 2 };
-			WORD i;
-
-			memset (out, 0, sizeof (out));
-			out[0] = 0;                    /* interleaved bitplanes */
-			out[2] = planes;
-			for (i = 0; i < 256; i++) {
-				out[16 + i] = (planes == 4 && i < 16 ? st_pixel_16[i]
-				             : planes == 2 && i <  4 ? st_pixel_4[i]
-				             : i);
-			}
-		}
+		hw_vq_scrninfo (vdi_handle, out);
 		memcpy (pixel_val, out + 16, 512);
 		sdepth  = ((UWORD)out[4] == 0x8000u
 		           ? 15 : out[2]);           /* bits per pixel used */
@@ -1537,9 +1711,15 @@ rasterizer (UWORD depth, UWORD comps)
 		} else if (out[0] == 0) switch (sdepth) { /* interleaved words */
 			case 2:
 				cnvpal_color = cnvpal_1_2;
-				raster_cmap  = raster_D2;
-				raster_gray  = gscale_D2;
-				raster_true  = dither_D2;
+				if (color_GreyRamp) {
+					raster_cmap = raster_G2;
+					raster_gray = gscale_G2;
+					raster_true = dither_G2;
+				} else {
+					raster_cmap = raster_D2;
+					raster_gray = gscale_D2;
+					raster_true = dither_D2;
+				}
 				break;
 			case 4:
 				cnvpal_color = cnvpal_4_8;
@@ -1619,16 +1799,15 @@ rasterizer (UWORD depth, UWORD comps)
 			            "sdepth=%i out+0=%i out+4=%04X out+14=%04X mode='%.10s'",
 			            sdepth, out[0], out[4], out[14], disp_info);
 		}
-		/* Last resort for a screen none of the above matched.  This used to
-		 * test (!raster_cmap), which can never be true: the statics start out
-		 * pointing at invalid_raster, not at NULL, so the safety net never
-		 * deployed and cnvpal_color was left as invalid_cnvpal - which is why
-		 * an unrecognised screen was followed by "cnvpal_color() undefined
-		 * function called" rather than by a working fallback.
+		/* Last resort for a screen none of the above matched.  The statics
+		 * start out pointing at invalid_raster, never at NULL, so that is the
+		 * value that means "still unset".
 		 */
 		if (raster_cmap == (void*)invalid_raster) {  /* standard format */
 			cnvpal_color      = cnvpal_4_8;
 			raster_cmap       = raster_stnd;
+			raster_gray       = gscale_stnd;
+			raster_true       = dither_stnd;
 			raster.StndBitmap = TRUE;
 		}
 		if (sdepth == 4 || sdepth == 8) {

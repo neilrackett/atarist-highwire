@@ -587,7 +587,7 @@ setup (IMAGE img, IMGINFO info)
 		return NULL;
 	}
 	
-	if (info->BitDepth > 1 && planes <= 8) {
+	if (info->BitDepth > 1 && (planes <= 8 || raster->StndBitmap)) {
 		size_t size = (img->disp_w +1) *3;
 		if ((info->DthBuf = malloc (size)) == NULL) {
 			free (data);
