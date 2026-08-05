@@ -23,6 +23,7 @@
 #endif
 
 #include "global.h"
+#include "romvdi.h"
 #include "Containr.h"
 #include "Loader.h"
 #include "Location.h"
@@ -616,7 +617,7 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 	
 	fnt = ui_font_setup ();
 	vst_color     (vdi_handle, info_fgnd);
-	vst_map_mode  (vdi_handle, MAP_UNICODE);
+	hw_vst_map_mode  (vdi_handle, MAP_UNICODE);
 	vst_effects   (vdi_handle, TXT_NORMAL);
 	
 	v_hide_c (vdi_handle);
@@ -639,7 +640,7 @@ draw_infobar (HwWIND This, const GRECT * p_clip, const char * info)
 				}
 				vs_clip_pxy (vdi_handle, p);
 				vst_alignment (vdi_handle, TA_LEFT, TA_TOP, &dmy, &dmy);
-				v_ftext (vdi_handle, area.g_x +1, area.g_y -1, info);
+				hw_v_ftext (vdi_handle, area.g_x +1, area.g_y -1, info);
 				if (!p_clip) {
 					vs_clip_off (vdi_handle);
 				}
@@ -723,7 +724,7 @@ hwWind_setHSInfo (HwWIND This, const char * info)
 	
 	ui_font_setup ();
 	vst_color     (vdi_handle, info_fgnd);
-	vst_map_mode  (vdi_handle, MAP_UNICODE);
+	hw_vst_map_mode  (vdi_handle, MAP_UNICODE);
 	vst_effects   (vdi_handle, TXT_NORMAL);
 	vst_alignment (vdi_handle, TA_LEFT, TA_DESCENT, &dmy, &dmy);
 
@@ -744,7 +745,7 @@ hwWind_setHSInfo (HwWIND This, const char * info)
 		draw_busybar (This, &area, (GRECT*)clip);
 	}
 	
-	v_ftext  (vdi_handle, p[0].p_x +1, p[1].p_y -1, info);
+	hw_v_ftext  (vdi_handle, p[0].p_x +1, p[1].p_y -1, info);
 	v_show_c (vdi_handle, 1);
 	
 	vst_alignment (vdi_handle, TA_LEFT, TA_BASE, &dmy, &dmy);

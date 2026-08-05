@@ -5,6 +5,7 @@
 #include <gemx.h>
 
 #include "global.h"
+#include "romvdi.h"
 #include "hwWind.h"
 #include "highwire.h"
 
@@ -70,7 +71,7 @@ static void
 set_entry (short entry, short id)
 {
 	XFNT_INFO info = { sizeof(XFNT_INFO), };
-	const char * text = (vqt_xfntinfo (vdi_handle, 0x0001, id, 0, &info)
+	const char * text = (hw_vqt_xfntinfo (vdi_handle, 0x0001, id, 0, &info)
 	                     ? info.font_name : "???");
 	strcpy  (fnt_name[entry]->te_ptext, text);
 	sprintf (fnt_indx[entry], "%hu", id);

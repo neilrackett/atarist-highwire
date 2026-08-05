@@ -4,6 +4,7 @@
 #include <gemx.h>
 
 #include "global.h"
+#include "romvdi.h"
 #include "fontbase.h"
 
 
@@ -53,7 +54,7 @@ font_base (WORD id, UWORD style)
 		}
 		if (!found) {
 			XFNT_INFO info = { sizeof(XFNT_INFO), };
-			if (vqt_xfntinfo (vdi_handle, 0x0001, id, 0, &info)) {
+			if (hw_vqt_xfntinfo (vdi_handle, 0x0001, id, 0, &info)) {
 				found = malloc (sizeof(struct s_fontbase));
 				found->List    = NULL;
 				found->Id      = id;
@@ -161,10 +162,10 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 		
 		if (!prev || prev->Base != base) {
 			vst_font     (vdi_handle, base->RealId);
-			vst_map_mode (vdi_handle, base->Mapping);
+			hw_vst_map_mode (vdi_handle, base->Mapping);
 			vst_effects  (vdi_handle, base->Effects);
 		}
-		vst_arbpt (vdi_handle, points, u,u, (WORD*)&cellwd, u);
+		hw_vst_arbpt (vdi_handle, points, u,u, (WORD*)&cellwd, u);
 		
 		font = malloc (sizeof(struct s_font));
 		if (same) {
@@ -189,9 +190,9 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 			font->Condensed = 0;
 		} else {
 			font->Condensed = (cellwd *8 +5) /11;
-			vst_setsize32 (vdi_handle, font->Condensed, u,u,u,u);
+			hw_vst_setsize32 (vdi_handle, font->Condensed, u,u,u,u);
 		}
-		vqt_advance (vdi_handle, base->SpaceCode, &font->SpaceWidth, u,u,u);
+		hw_vqt_advance (vdi_handle, base->SpaceCode, &font->SpaceWidth, u,u,u);
 		font->SpaceWidth++;
 		
 	} else {
@@ -219,14 +220,14 @@ font_switch (FONT actual, FONT previous)
 	
 	if (base != prev) {
 		vst_font     (vdi_handle, base->RealId);
-		vst_map_mode (vdi_handle, base->Mapping);
+		hw_vst_map_mode (vdi_handle, base->Mapping);
 		effects = (!prev || prev->Effects != base->Effects);
 	} else {
 		effects = FALSE;
 	}
-	vst_arbpt   (vdi_handle, actual->Points, &u,&u,&u,&u);
+	hw_vst_arbpt   (vdi_handle, actual->Points, &u,&u,&u,&u);
 	if (actual->Condensed) {
-		vst_setsize32 (vdi_handle, actual->Condensed, &u,&u,&u,&u);
+		hw_vst_setsize32 (vdi_handle, actual->Condensed, &u,&u,&u,&u);
 	}
 	
 	return effects;

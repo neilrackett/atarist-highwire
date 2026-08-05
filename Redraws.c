@@ -5,6 +5,7 @@
 #include <gemx.h>
 
 #include "global.h"
+#include "romvdi.h"
 #include "Form.h"
 #include "fontbase.h"
 
@@ -560,7 +561,7 @@ draw_paragraph (PARAGRPH paragraph,
 						alt[1].p_y += alt[0].p_y -1;
 						y += word->image->alt_h;
 						vs_clip_pxy (vdi_handle, alt);
-						v_ftext16   (vdi_handle, x + word->image->hspace, y, text);
+						hw_v_ftext16   (vdi_handle, x + word->image->hspace, y, text);
 						alt[1].p_x = (alt[0].p_x = clip->g_x) + clip->g_w -1;
 						alt[1].p_y = (alt[0].p_y = clip->g_y) + clip->g_h -1;
 						vs_clip_pxy (vdi_handle, alt);
@@ -571,7 +572,7 @@ draw_paragraph (PARAGRPH paragraph,
 				input_draw (word->input, x, y);
 			
 			} else {
-				v_ftext16 (vdi_handle, x, y, text);
+				hw_v_ftext16 (vdi_handle, x, y, text);
 
 				if (TAgetStrike (word->attr)) {
 					PXY p[2];

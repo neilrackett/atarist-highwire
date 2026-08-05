@@ -4,6 +4,7 @@
 #include <gemx.h>
 
 #include "global.h"
+#include "romvdi.h"
 #include "fontbase.h"
 #include "Table.h"
 
@@ -209,7 +210,7 @@ word_store (TEXTBUFF current)
 			}
 			word->item = item;
 		
-			vqt_f_extent16n (vdi_handle, word->item, (WORD)length, pts);
+			hw_vqt_f_extent16n (vdi_handle, word->item, (WORD)length, pts);
 			pts[2] -= pts[0];
 		}
 		if (word->image) {

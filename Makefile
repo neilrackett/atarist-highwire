@@ -117,6 +117,7 @@ CFILES = \
 	bookmark.c \
 	Variable.c \
 	Nice_VDI.c \
+	romvdi.c \
 	keyinput.c \
 	Mouse_R.c \
 	AEI.c \

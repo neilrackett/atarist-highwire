@@ -33,6 +33,7 @@ typedef struct s_input * INPUT;
 #endif
 
 #include "global.h"
+#include "romvdi.h"
 #include "fontbase.h"
 #include "scanner.h"
 #include "Containr.h"
@@ -766,7 +767,7 @@ selct_option (TEXTBUFF current, const char * text,
 		memcpy (item->Text, current->buffer, tlen *2);
 		item->Text[tlen] = '\0';
 		item->Length = (WORD)tlen;
-		vqt_f_extent16n (vdi_handle, item->Text, item->Length, pts);
+		hw_vqt_f_extent16n (vdi_handle, item->Text, item->Length, pts);
 		item->Width = pts[2] - pts[0];
 
 		item->Value = (disabled ? NULL : value ? value : item->Strng +1);
@@ -943,23 +944,19 @@ input_draw (INPUT input, WORD x, WORD y)
 			shft = 0;
 		}
 		if (fmap) {
-			vst_map_mode (vdi_handle, MAP_UNICODE);
+			hw_vst_map_mode (vdi_handle, MAP_UNICODE);
 		}
 		while (rows--) {
 			WCHAR * ptr = wptr[0] + shft;
 			WORD    len = min ((UWORD)(wptr[1] -1 - ptr), input->VisibleX);
 			pos.p_y += input->CursorH;
 			if (len > 0)
-#ifdef __PUREC__
-				v_ftext16n (vdi_handle, pos.p_x, pos.p_y, ptr, len);
-#else
-				v_ftext16n (vdi_handle, pos, ptr, len);
-#endif
+				hw_v_ftext16n (vdi_handle, pos.p_x, pos.p_y, ptr, len);
 			wptr++;
 		}
 		if (input == form->TextActive) {
 			WCHAR * ptr = input->TextArray[form->TextShiftY]   + shft;
-			vqt_f_extent16n (vdi_handle, ptr, form->TextCursrX - shft, &p[0].p_x);
+			hw_vqt_f_extent16n (vdi_handle, ptr, form->TextCursrX - shft, &p[0].p_x);
 			p[0].p_x = x +2 + p[1].p_x - p[0].p_x;
 			p[1].p_x = p[0].p_x +1;
 			p[0].p_y = y - word->word_height +2
@@ -971,10 +968,10 @@ input_draw (INPUT input, WORD x, WORD y)
 			vswr_mode (vdi_handle, MD_TRANS);
 		}
 		if (fmap) {
-			vst_map_mode (vdi_handle, word->font->Base->Mapping);
+			hw_vst_map_mode (vdi_handle, word->font->Base->Mapping);
 		}
 	} else if (input->Type >= IT_BUTTN) {
-		v_ftext16 (vdi_handle,
+		hw_v_ftext16 (vdi_handle,
 		           x + (input->Type == IT_BUTTN ? 4 : 3), y, word->item);
 	}
 	if (input->disabled) {
@@ -2332,14 +2329,14 @@ edit_init (INPUT input, TEXTBUFF current, UWORD cols, UWORD rows, size_t size)
 
 	font_byType (pre_font, -1, -1, word);
 	if (word->font->Base->Mapping != MAP_UNICODE) {
-		vst_map_mode (vdi_handle, MAP_UNICODE);
+		hw_vst_map_mode (vdi_handle, MAP_UNICODE);
 	}
 	for (n = 0; n < cols; current->text[n++] = NOBRK_UNI);
-	vqt_f_extent16n (vdi_handle, word->item, cols, p);
+	hw_vqt_f_extent16n (vdi_handle, word->item, cols, p);
 	*(current->text++) = word->font->Base->SpaceCode;
 	set_word (current, word->word_height, word->word_tail_drop, p[2] - p[0] +2);
 	if (word->font->Base->Mapping != MAP_UNICODE) {
-		vst_map_mode (vdi_handle, word->font->Base->Mapping);
+		hw_vst_map_mode (vdi_handle, word->font->Base->Mapping);
 	}
 	current->word->attr = attr;
 

@@ -15,6 +15,7 @@
 #include <cflib.h>
 #include "version.h"
 #include "global.h"
+#include "romvdi.h"
 #include "Logging.h"
 #include "schedule.h"
 #define WINDOW_t WINDOW
@@ -91,16 +92,16 @@ main (int argc, char **argv)
 	}
 	atexit (highwire_ex);
 
-	/* HighWire needs a Speedo fonts GDOS, that is SpeedoGDOS or NVDI >= 3.
+	/* HighWire prefers a Speedo fonts GDOS, that is SpeedoGDOS or NVDI >= 3,
+	 * and uses everything it offers when one is there.  Where there is not -
+	 * a plain ST or Mega ST(E) running only the ROM VDI - we fall back to the
+	 * system font instead of refusing to start.  See romvdi.c.
 	 */
 	gdostype = vq_vgdos();
-
-/*  This next test is a potential candidate if the -65536 test doesn't work */
-/*	if ((gdostype == GDOS_FNT)||(gdostype == -2)) {*/
-
-	if ((gdostype != GDOS_FSM) && (gdostype != -65536L)
-	    && (memcmp (&gdostype, "fVDI", 4) != 0)) {
-		hwUi_fatal (NULL, _ERROR_SPEEDO_);
+	romvdi_init (gdostype);
+	if (!has_fsm_gdos) {
+		printf ("%s\n%s\n", _ERROR_SPEEDO_,
+		        "Falling back to the system font.");
 	}
 
 	nkc_init();
@@ -234,10 +235,10 @@ main (int argc, char **argv)
 		init_logging();
 	}
 	
-	vst_load_fonts (vdi_handle, 0);
+	hw_vst_load_fonts (vdi_handle, 0);
 	
-	vst_scratch (vdi_handle, SCRATCH_BOTH);
-	vst_kern    (vdi_handle, TRACK_NORMAL, PAIR_ON, &u, &u);
+	hw_vst_scratch (vdi_handle, SCRATCH_BOTH);
+	hw_vst_kern    (vdi_handle, TRACK_NORMAL, PAIR_ON, &u, &u);
 	vswr_mode   (vdi_handle, MD_TRANS);
 	
 	u = 0;
@@ -339,7 +340,7 @@ highwire_ex (void)
 		extern void location_tidyup (BOOL final);
 		location_tidyup (TRUE);
 	}
-	vst_unload_fonts (vdi_handle, 0);
+	hw_vst_unload_fonts (vdi_handle, 0);
 	v_clsvwk         (vdi_handle);
 }
 
