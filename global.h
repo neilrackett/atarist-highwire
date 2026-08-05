@@ -16,7 +16,16 @@ extern const BOOL mem_TidyUp; /* for debugging, to release memory *
 extern VDI_Workstation  vdi_dev;
 #define vdi_handle     (vdi_dev.handle)
 #define planes         (vdi_dev.planes)
-#define ignore_colours (planes < 2)
+/* TRUE when the screen has too few pens for the light/dark shades the
+ * interface draws with.  Those are G_LWHITE and G_LBLACK, VDI pens 8 and 9,
+ * so they need sixteen colours - four planes - to exist at all.
+ *
+ * This used to read (planes < 2), which is only ever true of a monochrome
+ * screen.  ST medium resolution has two planes, so it took the full colour
+ * path and painted page backgrounds and 3D edges with pen 8 on a screen whose
+ * pens stop at 3, which came out black on black.
+ */
+#define ignore_colours (planes < 4)
 
 extern LONG hdr_tout_doc; /* milliseconds to wait for a reply header */
 extern LONG hdr_tout_gfx; /* same as above but for graphics etc.     */
