@@ -7,3 +7,5 @@ obj.*
 *.o
 *.a
 *.ovl
+.DS_Store
+tmp/
