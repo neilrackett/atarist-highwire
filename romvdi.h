@@ -24,6 +24,7 @@
  *   v_ftext16/16n   -> converted to 8-bit, then v_gtext
  *   vqt_f_extent16n -> converted to 8-bit, then vqt_extent
  *   vst_scratch/vst_kern/vst_(un)load_fonts -> ignored
+ *   vq_scrninfo     -> synthesised (interleaved bitplanes, ST palette order)
  *
  * The result is single-size, single-face text: the ROM carries only the fixed
  * system font, so there is no bold, no italic and no scaling.  That is a large
@@ -64,5 +65,6 @@ void hw_vst_kern        (WORD handle, WORD tmode, WORD pmode,
                          WORD * tracks, WORD * pairs);
 void hw_vst_load_fonts  (WORD handle, WORD sel);
 void hw_vst_unload_fonts(WORD handle, WORD sel);
+void hw_vq_scrninfo     (WORD handle, WORD * out);
 
 #endif /* __ROMVDI_H__ */

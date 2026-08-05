@@ -11,7 +11,7 @@
 #include "romvdi.h"
 
 
-BOOL has_fsm_gdos = TRUE;
+BOOL has_fsm_gdos = FALSE; /* until romvdi_init() says otherwise */
 
 /* What vst_map_mode() was last asked for.  With a real GDOS the VDI keeps this
  * itself; without one we have to remember it, because it tells us how to read
@@ -44,6 +44,7 @@ romvdi_init (long gdostype)
 
 /*----------------------------------------------------------------------------*/
 /* Narrow a 16-bit string to 8-bit Atari characters for the ROM VDI.
+ * num < 0 means "until the NUL terminator".
  * Returns a NUL terminated static buffer, valid until the next call.
  */
 static const char *
@@ -52,19 +53,33 @@ narrow (const WCHAR * src, WORD num)
 	char * dst = narrow_buf;
 	char * end = narrow_buf + NARROW_MAX - 4; /* unicode_to_8bit may emit >1 */
 
-	while (num-- > 0 && *src && dst < end) {
-		if (cur_map_mode == MAP_UNICODE) {
+	if (cur_map_mode == MAP_UNICODE) {
+		while (num-- != 0 && *src && dst < end) {
 			dst = unicode_to_8bit (*(src++), dst);
-		} else {
-			/* Already Atari (or Bitstream, for which this is the best we can
-			 * do) characters sitting in 16-bit cells - just take the low byte.
-			 */
+		}
+	} else {
+		/* Already Atari (or Bitstream, for which this is the best we can do)
+		 * characters sitting in 16-bit cells - just take the low byte.
+		 */
+		while (num-- != 0 && *src && dst < end) {
 			*(dst++) = (char)*(src++);
 		}
 	}
 	*dst = '\0';
 
 	return narrow_buf;
+}
+
+/*----------------------------------------------------------------------------*/
+/* Same conversion for a single character. */
+static char
+narrow_char (WORD ch)
+{
+	if (cur_map_mode == MAP_UNICODE) {
+		char buf[8];
+		return (unicode_to_8bit (ch, buf) > buf ? buf[0] : '\0');
+	}
+	return (char)ch;
 }
 
 
@@ -158,7 +173,7 @@ hw_vqt_advance (WORD handle, WORD ch,
 	/* The ROM VDI has no sub-pixel advance; character cells are fixed, so the
 	 * character width is the advance and there is no remainder.
 	 */
-	*advx = vqt_width (handle, (char)ch, remx, remy, advy);
+	*advx = vqt_width (handle, narrow_char (ch), remx, remy, advy);
 	if (*advx < 0) {
 		*advx = 0;
 	}
@@ -185,7 +200,7 @@ hw_v_ftext16 (WORD handle, WORD x, WORD y, const WCHAR * str)
 	if (has_fsm_gdos) {
 		v_ftext16 (handle, x, y, str);
 	} else {
-		v_gtext (handle, x, y, narrow (str, NARROW_MAX));
+		v_gtext (handle, x, y, narrow (str, -1));
 	}
 }
 
@@ -259,5 +274,53 @@ hw_vst_unload_fonts (WORD handle, WORD sel)
 {
 	if (has_fsm_gdos) {
 		vst_unload_fonts (handle, sel);
+	}
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* vq_scrninfo() arrived with NVDI and the plain ROM VDI answers it with
+ * garbage.  Without a GDOS (or given a senseless reply) describe the screen
+ * ourselves: an ST/STE screen is always interleaved bitplanes, one plane per
+ * bit of depth, with the VDI colour index -> hardware pixel value mapping in
+ * out[16..271].  out must hold the full 273 WORD reply.
+ */
+void
+hw_vq_scrninfo (WORD handle, WORD * out)
+{
+	/* the TOS VDI puts white first and black second (or last), so not the
+	 * identity map */
+	static const WORD st_pixel_16[16] =
+		{ 0, 15, 1, 2, 4, 6, 3, 5, 7, 8, 9, 10, 12, 14, 11, 13 };
+	static const WORD st_pixel_4[4] = { 0, 3, 1, 2 };
+	static const WORD tt_pixel_256[16] =
+		{ 0, 255, 1, 2, 4, 6, 3, 5, 7, 8, 9, 10, 12, 14, 11, 13 };
+	WORD i;
+
+	if (has_fsm_gdos) {
+		vq_scrninfo (handle, out);
+		if (out[0] >= 0 && out[0] <= 2 && out[2] >= 1 && out[2] <= 32) {
+			return;
+		}
+		/* implausible reply - fall through and answer it ourselves */
+	}
+
+	memset (out, 0, 273 * sizeof *out);
+	out[2] = planes;
+	if (planes > 8) {
+		out[0] = 2; /* packed pixels - no colour index mapping to report */
+		return;
+	}
+	/* out[0] = 0 from the memset: interleaved bitplanes */
+	for (i = 0; i < 256; i++) {
+		out[16 + i] = i;
+	}
+	if (planes == 4) {
+		memcpy (out + 16, st_pixel_16, sizeof st_pixel_16);
+	} else if (planes == 2) {
+		memcpy (out + 16, st_pixel_4, sizeof st_pixel_4);
+	} else if (planes == 8) {
+		memcpy (out + 16, tt_pixel_256, sizeof tt_pixel_256);
+		out[16 + 255] = 15;
 	}
 }
