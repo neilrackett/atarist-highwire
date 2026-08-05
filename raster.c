@@ -1490,6 +1490,37 @@ rasterizer (UWORD depth, UWORD comps)
 		BOOL  reverse, z_trail;
 
 		vq_scrninfo (vdi_handle, out);
+
+		/* vq_scrninfo() arrived with NVDI, and the plain ROM VDI does not
+		 * answer it - the array comes back holding something else entirely,
+		 * which decodes as 31 bits per pixel in an unknown layout and raised
+		 * "Unrecognized screen format!" on every ST.  Check the reply makes
+		 * sense and describe the screen ourselves when it does not.
+		 *
+		 * An ST/STE screen is always interleaved bitplanes, one plane per bit
+		 * of depth.  The VDI's colour indices are not the hardware pixel
+		 * values, though, so that mapping has to be supplied too: it is what
+		 * out[16..] carries and what pixel_val[] is taken from just below.
+		 */
+		if (out[0] < 0 || out[0] > 2 || out[2] < 1 || out[2] > 32) {
+			/* VDI colour index -> hardware pixel value.  The ST VDI puts white
+			 * first and black second, then the remaining colours in its own
+			 * order, so this is not the identity mapping.
+			 */
+			static const WORD st_pixel_16[16] =
+				{ 0, 15, 1, 2, 4, 6, 3, 5, 7, 8, 9, 10, 12, 14, 11, 13 };
+			static const WORD st_pixel_4[4] = { 0, 3, 1, 2 };
+			WORD i;
+
+			memset (out, 0, sizeof (out));
+			out[0] = 0;                    /* interleaved bitplanes */
+			out[2] = planes;
+			for (i = 0; i < 256; i++) {
+				out[16 + i] = (planes == 4 && i < 16 ? st_pixel_16[i]
+				             : planes == 2 && i <  4 ? st_pixel_4[i]
+				             : i);
+			}
+		}
 		memcpy (pixel_val, out + 16, 512);
 		sdepth  = ((UWORD)out[4] == 0x8000u
 		           ? 15 : out[2]);           /* bits per pixel used */
@@ -1588,7 +1619,14 @@ rasterizer (UWORD depth, UWORD comps)
 			            "sdepth=%i out+0=%i out+4=%04X out+14=%04X mode='%.10s'",
 			            sdepth, out[0], out[4], out[14], disp_info);
 		}
-		if (!raster_cmap) {                     /* standard format */
+		/* Last resort for a screen none of the above matched.  This used to
+		 * test (!raster_cmap), which can never be true: the statics start out
+		 * pointing at invalid_raster, not at NULL, so the safety net never
+		 * deployed and cnvpal_color was left as invalid_cnvpal - which is why
+		 * an unrecognised screen was followed by "cnvpal_color() undefined
+		 * function called" rather than by a working fallback.
+		 */
+		if (raster_cmap == (void*)invalid_raster) {  /* standard format */
 			cnvpal_color      = cnvpal_4_8;
 			raster_cmap       = raster_stnd;
 			raster.StndBitmap = TRUE;

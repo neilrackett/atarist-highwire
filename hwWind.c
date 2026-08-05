@@ -566,6 +566,26 @@ draw_busybar (HwWIND This, const GRECT * area, const GRECT * clip)
  * matching it keeps our text the same size as the rest of the desktop in every
  * resolution.  Only the fallback to a real GDOS font stays on a point size.
  */
+static void
+sys_font_setup (void)
+{
+	WORD cw, ch, bw, bh;
+	WORD h = vdi_dev.hchar;
+
+	vst_font (vdi_handle, 1);
+
+	/* vst_height() takes the CHARACTER height, which is smaller than the cell
+	 * the character sits in - 6 in the 8x8 face, 13 in the 8x16 one.  Asking
+	 * for the cell height therefore overshoots and lands on the next face up,
+	 * or has the VDI scale one to fit, which is what made the status line look
+	 * stretched.  Walk the request down until the cell we are handed back
+	 * actually fits the one the AES is using.
+	 */
+	do {
+		vst_height (vdi_handle, h, &cw, &ch, &bw, &bh);
+	} while (bh > vdi_dev.hchar && --h > 1);
+}
+
 static WORD
 ui_font_setup (void)
 {
@@ -573,7 +593,7 @@ ui_font_setup (void)
 	WORD fnt = vst_font (vdi_handle, (inc_xy < 16 ? 1 : fonts[header_font][0][0]));
 
 	if (fnt == 1) {
-		vst_height (vdi_handle, vdi_dev.hchar, &dmy,&dmy,&dmy,&dmy);
+		sys_font_setup ();
 	} else {
 		vst_height (vdi_handle, 14, &dmy,&dmy,&dmy,&dmy);
 	}
@@ -1327,8 +1347,7 @@ draw_toolbar (HwWIND This, const GRECT * p_clip, BOOL all)
 					p[2].p_x += p[1].p_x -1;
 					p[2].p_y += p[1].p_y -1;
 					vs_clip_pxy (vdi_handle, p +1);
-					vst_font      (vdi_handle, 1);
-					vst_point     (vdi_handle, 12, &dmy, &dmy, &dmy, &dmy);
+					sys_font_setup ();
 					vst_effects   (vdi_handle, TXT_NORMAL);
 					vst_alignment (vdi_handle, TA_LEFT, TA_TOP, &dmy, &dmy);
 					vst_color     (vdi_handle, (actv ? G_BLACK : G_LBLACK));
@@ -1339,8 +1358,12 @@ draw_toolbar (HwWIND This, const GRECT * p_clip, BOOL all)
 			}
 			if (actv) {
 				vs_clip_pxy (vdi_handle, (PXY*)&clip);
+				/* The system font is 8 pixels wide in every resolution, but
+				 * only 8 tall in ST low/medium against 16 in ST high, so the
+				 * caret has to follow the cell rather than assume the tall one.
+				 */
 				p[1].p_x = (p[0].p_x += (edit->Cursor - edit->Shift) *8 -1) +1;
-				p[1].p_y =  p[0].p_y +16;
+				p[1].p_y =  p[0].p_y + vdi_dev.hchar;
 				vswr_mode (vdi_handle, MD_XOR);
 				v_bar     (vdi_handle, &p[0].p_x);
 				vswr_mode (vdi_handle, MD_TRANS);
