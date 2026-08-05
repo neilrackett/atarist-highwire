@@ -39,6 +39,22 @@ static const char * cfg_magic = _HIGHWIRE_VERSION_ _HIGHWIRE_BETATAG_
                                 " [" __DATE__ "]";
 
 
+/*----------------------------------------------------------------------------*/
+/* Fill buf with 'X:\launch\path\' and return the append point for a name. */
+static char *
+prog_dir (char * buf)
+{
+	char * p;
+	buf[0] = Dgetdrv();
+	buf[0] += (buf[0] < 26 ? 'A' : -26 + '1');
+	buf[1] = ':';
+	Dgetpath (buf + 2, 0);
+	p = strchr (buf, '\0');
+	if (p[-1] != '\\') *(p++) = '\\';
+	*p = '\0';
+	return p;
+}
+
 /*============================================================================*/
 FILE *
 open_default (const char ** path, const char * name, const char * mode)
@@ -77,13 +93,7 @@ open_default (const char ** path, const char * name, const char * mode)
 			}
 		}
 		if (!file) {
-			buff[0] = Dgetdrv();
-			buff[0] += (buff[0] < 26 ? 'A' : -26 + '1');
-			buff[1] = ':';
-			Dgetpath (buff + 2, 0);
-			p = strchr (buff, '\0');
-			if (p[-1] != '\\') *(p++) = '\\';
-			strcpy (p, name);
+			strcpy (prog_dir (buff), name);
 			file = fopen (buff, mode);
 		}
 		if (file) {
@@ -96,6 +106,21 @@ open_default (const char ** path, const char * name, const char * mode)
 
 /*----------------------------------------------------------------------------*/
 #define open_cfg(mode)   open_default (&cfg_File, _HIGHWIRE_CFG_, mode)
+
+/*----------------------------------------------------------------------------*/
+/* If no CACHEDIR was configured (or it failed), default to a folder 'CACHE'
+ * in the program's directory, created if it doesn't exist yet.
+ */
+static void
+dflt_cachedir (void)
+{
+	if (!cache_DirInfo()) {
+		char buf[HW_PATH_MAX];
+		strcpy (prog_dir (buf), "CACHE");
+		(void)Dcreate (buf); /* may exist already, cache_build() sorts it out */
+		cache_setup (buf, 0, 0, 0);
+	}
+}
 
 
 /*============================================================================*/
@@ -593,6 +618,7 @@ read_config(void)
 	
 	if (!fp) {
 		save_config (NULL, NULL);
+		dflt_cachedir();
 		cfg_UptoDate = FALSE;
 		return FALSE;
 	}
@@ -707,6 +733,7 @@ read_config(void)
 		save_colors();
 		background_colour = remap_color (backgnd);
 	}
+	dflt_cachedir();
 	
 	if (cfg_UptoDate <= 0) {
 		save_config (NULL, NULL);
