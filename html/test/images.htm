@@ -1,0 +1,54 @@
+<html>
+<head><title>Images</title></head>
+<body>
+<p><a href="index.htm">&lt; index</a></p>
+<h1>Images: scaling, alignment, floats, ALT</h1>
+
+<h2>Natural size</h2>
+<p><img src="minilogo.gif" alt="minilogo"> plain IMG, natural size.</p>
+
+<h2>Scaling</h2>
+<p>
+<img src="silyface.gif" alt="face" width="16" height="16">
+<img src="silyface.gif" alt="face" width="32" height="32">
+<img src="silyface.gif" alt="face" width="64" height="64">
+<img src="silyface.gif" alt="face" width="64" height="32"> (stretched wide)
+<img src="silyface.gif" alt="face" width="32" height="64"> (stretched tall)
+</p>
+<p>width only (height derived): <img src="silyface.gif" alt="face" width="48"></p>
+
+<h2>Alignment with text</h2>
+<p><img src="silyface.gif" align="top" alt="top"> align=top with a line of text beside it.</p>
+<p><img src="silyface.gif" align="middle" alt="middle"> align=middle with a line of text.</p>
+<p><img src="silyface.gif" align="bottom" alt="bottom"> align=bottom with a line of text.</p>
+
+<h2>Floating</h2>
+<p><img src="nc2003.gif" align="left" alt="left float" hspace="8">
+align=left: this text should flow down the right-hand side of the image,
+wrapping as needed, until it clears the bottom of the picture and then
+returns to the full width of the window.</p>
+<br clear="left">
+<p><img src="nc2003.gif" align="right" alt="right float" hspace="8">
+align=right: this text should flow down the left-hand side, again long
+enough to wrap a few times on a narrow screen before clearing.</p>
+<br clear="all">
+
+<h2>Border, spacing</h2>
+<p>
+<img src="silyface.gif" border="1" alt="b1">
+<img src="silyface.gif" border="3" alt="b3">
+<img src="silyface.gif" hspace="16" vspace="8" alt="spaced"> (hspace=16 vspace=8)
+</p>
+
+<h2>Image as link</h2>
+<p><a href="index.htm"><img src="minilogo.gif" border="2" alt="linked logo"></a>
+- bordered in the link colour.</p>
+
+<h2>Missing image / ALT</h2>
+<p><img src="missing.gif" alt="[ALT text for a missing image]"> should show ALT.</p>
+<p><img src="missing.gif" alt="sized missing" width="80" height="40" border="1">
+sized placeholder with border.</p>
+
+<p><a href="index.htm">&lt; index</a></p>
+</body>
+</html>

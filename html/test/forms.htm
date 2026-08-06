@@ -1,0 +1,79 @@
+<html>
+<head><title>Forms</title></head>
+<body>
+<p><a href="index.htm">&lt; index</a></p>
+<h1>Forms: inputs, selects, textareas, buttons</h1>
+
+<form action="index.htm" method="get">
+
+<h2>Text inputs</h2>
+<p>default (size 20): <input type="text" name="t1"></p>
+<p>size=5: <input type="text" name="t2" size="5"></p>
+<p>size=40: <input type="text" name="t3" size="40"></p>
+<p>with value: <input type="text" name="t4" value="prefilled text"></p>
+<p>maxlength=8: <input type="text" name="t5" size="12" maxlength="8"></p>
+<p>readonly: <input type="text" name="t6" value="cannot edit" readonly></p>
+<p>password: <input type="password" name="p1" size="12"></p>
+<p>file: <input type="file" name="f1"></p>
+
+<h2>Checkboxes and radios</h2>
+<p>
+<input type="checkbox" name="c1" checked> checked box
+<input type="checkbox" name="c2"> unchecked box
+</p>
+<p>
+<input type="radio" name="r1" value="a" checked> radio A
+<input type="radio" name="r1" value="b"> radio B
+<input type="radio" name="r1" value="c"> radio C
+</p>
+
+<h2>Selects</h2>
+<p>dropdown:
+<select name="s1">
+<option>first option
+<option selected>second (selected)
+<option>a much longer third option to widen the popup
+</select>
+</p>
+<p>with values and groups:
+<select name="s2">
+<optgroup label="Machines">
+<option value="st">ST</option>
+<option value="tt">TT</option>
+</optgroup>
+<optgroup label="Others">
+<option value="falcon">Falcon</option>
+</optgroup>
+</select>
+</p>
+
+<h2>Textarea</h2>
+<p><textarea name="ta1" rows="4" cols="30">Some initial text
+on two lines.</textarea></p>
+<p>tiny: <textarea name="ta2" rows="2" cols="10"></textarea></p>
+
+<h2>Buttons</h2>
+<p>
+<input type="submit" value="Submit">
+<input type="reset" value="Reset">
+<input type="submit"> (default label)
+</p>
+
+<h2>Labels and fieldset</h2>
+<fieldset>
+<legend>A fieldset legend</legend>
+<p><label>labelled input: <input type="text" name="t7" size="10"></label></p>
+</fieldset>
+
+<h2>Disabled</h2>
+<p><input type="text" name="t8" value="disabled" disabled>
+<input type="checkbox" name="c3" disabled> disabled box</p>
+
+<p>Hidden input follows (should show nothing):
+<input type="hidden" name="h1" value="secret"> - end.</p>
+
+</form>
+
+<p><a href="index.htm">&lt; index</a></p>
+</body>
+</html>
