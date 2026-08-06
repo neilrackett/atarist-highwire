@@ -14,6 +14,7 @@ typedef struct s_history_priv * HISTORY;
 #endif
 
 #include "global.h"
+#include "Logging.h"
 #include "Form.h"
 #include "schedule.h"
 #include "Location.h"
@@ -273,10 +274,10 @@ void
 containr_setup (CONTAINR cont, FRAME frame, const char * anchor)
 {
 	if (cont->Mode) {
-		printf ("containr_setup (%p): has mode %i!\n", cont, cont->Mode);
+		errprintf ("containr_setup (%p): has mode %i!\n", cont, cont->Mode);
 	
 	} else if (!frame) {
-		printf ("containr_setup (%p): no frame!\n", cont);
+		errprintf ("containr_setup (%p): no frame!\n", cont);
 	
 	} else {
 		GRECT area = cont->Area;
@@ -537,7 +538,7 @@ history_update (CONTAINR cont, HISTORY hist)
 	UWORD      num  = hist->Count;
 	BOOL       b    = TRUE;
 	if (!cont->Mode) {
-		puts ("history_update(): empty containr.");
+		errprintf ("history_update(): empty containr.\n");
 		return;
 	}
 	while (cont && num) {
@@ -546,18 +547,18 @@ history_update (CONTAINR cont, HISTORY hist)
 				FRAME frame = cont->u.Frame;
 				if (!frame) {
 					if (item->Location) {
-						printf ("history_update(): frame doesn't match '%s'"
+						errprintf ("history_update(): frame doesn't match '%s'"
 						        " #%i/%i.\n", item->Location->FullName,
 						        hist->Count - num, hist->Count);
 						return;
 					}
 				} else if (!item->Location) {
-					printf ("history_update(): frame '%s' doesn't match #%i/%i.\n",
+					errprintf ("history_update(): frame '%s' doesn't match #%i/%i.\n",
 					        (!frame->Location ? "*" : frame->Location->FullName),
 					        hist->Count - num, hist->Count);
 					return;
 				} else if (frame->Location != item->Location) {
-					printf ("history_update(): frame '%s' doesn't match '%s' #%i/%i.\n",
+					errprintf ("history_update(): frame '%s' doesn't match '%s' #%i/%i.\n",
 					        frame->Location->FullName, item->Location->FullName,
 					        hist->Count - num, hist->Count);
 					return;
@@ -582,7 +583,7 @@ history_update (CONTAINR cont, HISTORY hist)
 			
 			} else if (cont->Mode && cont->u.Child) {
 				if (item->Location) {
-					printf ("history_update(): node doesn't match '%s' #%i/%i!\n",
+					errprintf ("history_update(): node doesn't match '%s' #%i/%i!\n",
 					        item->Location->FullName, hist->Count - num, hist->Count);
 					return;
 				}
@@ -605,8 +606,8 @@ history_update (CONTAINR cont, HISTORY hist)
 		b    = FALSE;
 	}
 	if (num) {
-		printf ("history_update(): too few containers (%i).\n", num);
-		printf ("'%s'\n", (item->Location ? item->Location->FullName : "*"));
+		errprintf ("history_update(): too few containers (%i) '%s'.\n", num,
+		           (item->Location ? item->Location->FullName : "*"));
 	}
 }
 
@@ -1611,7 +1612,7 @@ containr_debug (CONTAINR cont)
 	
 	while (cont) {
 		if (b) {
-			printf ("%*s%p = %i [%i,%i] [%i,%i,%i,%i] %s\n", depth *2, "",
+			errprintf ("%*s%p = %i [%i,%i] [%i,%i,%i,%i] %s\n", depth *2, "",
 			        cont, cont->Mode, cont->ColSize, cont->RowSize,
 			        cont->Area.g_x,cont->Area.g_y,cont->Area.g_w,cont->Area.g_h,
 			        (cont->Name ? cont->Name : "--"));

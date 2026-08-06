@@ -1002,7 +1002,7 @@ hwWind_scroll (HwWIND This, CONTAINR cont, long dx, long dy)
 	GRECT work = This->Work;
 	
 	if (cont->Base != This->Pane) {
-		printf ("hwWind_scroll() ERROR: container not in window!\n");
+		errprintf ("hwWind_scroll() ERROR: container not in window!\n");
 		return;
 	}
 	
@@ -2962,7 +2962,7 @@ hwWind_setActive (HwWIND This, CONTAINR cont, INPUT input)
 	
 	if (This) {
 		if (cont &&  This->Pane && cont->Base != This->Pane) {
-			printf ("hwWind_setActive() ERROR: container not in window!\n");
+			errprintf ("hwWind_setActive() ERROR: container not in window!\n");
 			return NULL;
 		}
 		if (cont && (active = containr_Frame (cont)) != NULL) {

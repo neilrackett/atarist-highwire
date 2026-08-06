@@ -1339,15 +1339,15 @@ location_rdIdx (FILE * file)
 		size_t len = (tag > 0 ? strlen (ptr) : 0);
 		while (len && isspace (ptr[len-1])) ptr[--len] = '\0';
 		if (!len) {
-			puts ("location_rdIdx(): zero host name.");
+			errprintf ("location_rdIdx(): zero host name.\n");
 			return NULL;
 		} else if ((host = host_store (ptr, len)) == NULL) {
-			puts ("location_rdIdx(): memory exhausted at host name.");
+			errprintf ("location_rdIdx(): memory exhausted at host name.\n");
 			return NULL;
 		} else {
 			host->IdxTag = tag;
 			if (!fgets (buf, (int)sizeof(buf), file)) {
-				puts ("location_rdIdx(): unexpected EOF after host name.");
+				errprintf ("location_rdIdx(): unexpected EOF after host name.\n");
 				return NULL;
 			}
 		}
@@ -1358,23 +1358,23 @@ location_rdIdx (FILE * file)
 		size_t len = (tag > 0 ? strlen (ptr) : 0);
 		while (len && isspace (ptr[len-1])) ptr[--len] = '\0';
 		if (!len) {
-			puts ("location_rdIdx(): zero dir name.");
+			errprintf ("location_rdIdx(): zero dir name.\n");
 			return NULL;
 		} else if (len > 1 && (dir = dir_store (ptr, len)) == NULL) {
-			puts ("location_rdIdx(): memory exhausted at dir name.");
+			errprintf ("location_rdIdx(): memory exhausted at dir name.\n");
 			return NULL;
 		} else {
 			if (!dir) dir = &dir_base;
 			dir->IdxTag = tag;
 			if (!fgets (buf, (int)sizeof(buf), file)) {
-				puts ("location_rdIdx(): unexpected EOF after dir name.");
+				errprintf ("location_rdIdx(): unexpected EOF after dir name.\n");
 				return NULL;
 			}
 		}
 	}
 	if (buf[0] != 'L' && buf[1] == ':') {
 		if (buf[0] != '!') {
-			puts ("location_rdIdx(): main entry missing.");
+			errprintf ("location_rdIdx(): main entry missing.\n");
 		}
 	} else {
 		char * ptr   = buf +2;
@@ -1385,19 +1385,19 @@ location_rdIdx (FILE * file)
 		size_t len   = (d_tag > 0 ? strlen (ptr) : 0);
 		while (len && isspace (ptr[len-1])) ptr[--len] = '\0';
 		if (h_tag <= 0) {
-			printf ("location_rdIdx(%s): host tag missing.\n", ptr);
+			errprintf ("location_rdIdx(%s): host tag missing.\n", ptr);
 			return NULL;
 		} else if (!host && (host = host_search (h_tag)) == NULL) {
-			printf ("location_rdIdx(%s): host entry not found.\n", ptr);
+			errprintf ("location_rdIdx(%s): host entry not found.\n", ptr);
 			return NULL;
 		} else if (d_tag <= 0) {
-			printf ("location_rdIdx(%s): dir tag missing.\n", ptr);
+			errprintf ("location_rdIdx(%s): dir tag missing.\n", ptr);
 			return NULL;
 		} else if (!dir && (dir = dir_search (d_tag)) == NULL) {
-			printf ("location_rdIdx(%s): dir entry not found.\n", ptr);
+			errprintf ("location_rdIdx(%s): dir entry not found.\n", ptr);
 			return NULL;
 		} else if (proto < 0 || port < 0) {
-			printf ("location_rdIdx(%s): format error %i/%i.\n", ptr, proto, port);
+			errprintf ("location_rdIdx(%s): format error %i/%i.\n", ptr, proto, port);
 			return NULL;
 		} else if ((loc = _alloc (dir, ptr)) != NULL) {
 			loc->Proto = proto;
@@ -1436,7 +1436,7 @@ location_tidyup (BOOL final)
 	while (dir_base.Next) {
 		DIR_ENT dir   = dir_base.Next;
 		dir_base.Next = dir->Next;
-		if (dir->Reffs) printf("location: %li=%.255s\n", dir->Reffs, dir->Name);
+		if (dir->Reffs) errprintf ("location: %li=%.255s\n", dir->Reffs, dir->Name);
 		if (!dir->Reffs) free (dir);
 	}
 }

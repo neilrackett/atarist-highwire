@@ -17,6 +17,7 @@
 #endif
 
 #include "global.h"
+#include "Logging.h"
 #include "bookmark.h"
 
 
@@ -389,7 +390,7 @@ bkm_search (BKM_LINE line, const char * id, BOOL dnNup)
 				*end = '\0';
 				if ((line = bkm_create (line, beg, 0)) == NULL) {
 					bkm_clear();
-					puts ("bkm_search(): memory exhausted!");
+					errprintf ("bkm_search(): memory exhausted!\n");
 					break;
 				}
 				beg = end +1;

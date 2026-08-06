@@ -4,6 +4,7 @@
 
 #include "defs.h"
 #include "scanner.h"
+#include "Logging.h"
 
 
 /*------------------------------------------------------------------------------
@@ -612,7 +613,7 @@ encoder_word (ENCODING encoding, WORD mapping)
 			case ENCODING_MACINTOSH:   return macintosh_to_bics;
 			case ENCODING_ATARIST:     return atari_to_bics;
 			default:
-				printf ("encoder_word('BITSTREAM'): invalid %i\n", encoding);
+				errprintf ("encoder_word('BITSTREAM'): invalid %i\n", encoding);
 				return windows1252_to_bics;
 		}
 	} else if (mapping == MAP_UNICODE) {
@@ -625,7 +626,7 @@ encoder_word (ENCODING encoding, WORD mapping)
 			case ENCODING_MACINTOSH:   return macintosh_to_utf16;
 			case ENCODING_ATARIST:     return atari_to_utf16;
 			default:
-				printf ("encoder_word('UNICODE'): invalid %i\n", encoding);
+				errprintf ("encoder_word('UNICODE'): invalid %i\n", encoding);
 				return windows1252_to_utf16;
 		}
 	} else if (mapping == MAP_ATARI) {
@@ -638,11 +639,11 @@ encoder_word (ENCODING encoding, WORD mapping)
 			case ENCODING_MACINTOSH:   return macintosh_to_atari;
 			case ENCODING_ATARIST:     return atari_to_atari;
 			default:
-				printf ("encoder_word('ATARI'): invalid %i\n", encoding);
+				errprintf ("encoder_word('ATARI'): invalid %i\n", encoding);
 				return windows1252_to_atari;
 		}
 	}
-	printf ("encoder_word(%i,%i): invalid mapping\n", mapping, encoding);
+	errprintf ("encoder_word(%i,%i): invalid mapping\n", mapping, encoding);
 	return windows1252_to_bics;
 }
 
@@ -830,6 +831,6 @@ encoder_char (ENCODING encoding)
 		case ENCODING_ATARIST:     return atari_to_8bit;
 		default: /* error */ ;
 	}
-	printf ("encoder_char(): invalid %i\n", encoding);
+	errprintf ("encoder_char(): invalid %i\n", encoding);
 	return windows1252_to_8bit;
 }

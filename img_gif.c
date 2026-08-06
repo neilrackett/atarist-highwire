@@ -19,9 +19,9 @@ static void _PrintGifError(GifFileType *gif)
 {
 	const char *err = GifErrorString(gif->Error);
 	if (err != NULL)
-		fprintf(stderr, "\nGIF-LIB error: %s.\n", err);
+		errprintf ("\nGIF-LIB error: %s.\n", err);
 	else
-		fprintf(stderr, "\nGIF-LIB undefined error %d.\n", gif->Error);
+		errprintf ("\nGIF-LIB undefined error %d.\n", gif->Error);
 }
 #define PrintGifError() _PrintGifError(gif)
 #endif

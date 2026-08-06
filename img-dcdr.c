@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "global.h"
+#include "Logging.h"
 #include "mime.h"
 #include "image_P.h"
 

@@ -5,6 +5,7 @@
 #include <gem.h>
 
 #include "global.h"
+#include "Logging.h"
 
 
 static void     vTab_delete   (DOMBOX *);
@@ -35,13 +36,13 @@ dombox_ctor (DOMBOX * This, DOMBOX * parent, BOXCLASS class)
 	This->_vtab = &DomBox_vTab;
 	
 	if (This == parent) {
-		puts ("dombox_ctor(): This and parent are equal!");
+		errprintf ("dombox_ctor(): This and parent are equal!\n");
 		return This;
 	}
 	
 	if (parent) {
 		if (!class) {
-			puts ("dombox_ctor(): no class given.");
+			errprintf ("dombox_ctor(): no class given.\n");
 		}
 		if (parent->ChildEnd) parent->ChildEnd->Sibling = This;
 		else                  parent->ChildBeg          = This;
@@ -49,7 +50,7 @@ dombox_ctor (DOMBOX * This, DOMBOX * parent, BOXCLASS class)
 		This->Parent     = parent;
 	} else {
 		if (class) {
-			puts ("dombox_ctor(): main got class.");
+			errprintf ("dombox_ctor(): main got class.\n");
 		}
 	}
 	This->BoxClass = class;
@@ -84,10 +85,10 @@ DOMBOX *
 dombox_dtor (DOMBOX * This)
 {
 	if ((int)This->BoxClass < 0) {
-		puts ("dombox_dtor(): already destroyed!");
+		errprintf ("dombox_dtor(): already destroyed!\n");
 	}
 	if (This->ChildBeg) {
-		puts ("dombox_dtor(): has still children!");
+		errprintf ("dombox_dtor(): has still children!\n");
 	}
 	if (This->Parent) {
 		DOMBOX * box = This->Parent->ChildBeg;
@@ -953,7 +954,7 @@ dombox_reorder (DOMBOX * This, DOMBOX * behind)
 	
 	if (behind) {
 		if (parent != behind->Parent) {
-			puts ("dombox_reorder(): parents differ!");
+			errprintf ("dombox_reorder(): parents differ!\n");
 			return;
 		}
 		if (This == behind->Sibling) {
@@ -969,7 +970,7 @@ dombox_reorder (DOMBOX * This, DOMBOX * behind)
 		DOMBOX * before = parent->ChildBeg;
 		while (before->Sibling != This) {
 			if ((before = before->Sibling) == NULL) {
-				puts ("dombox_reorder(): not in chain!");
+				errprintf ("dombox_reorder(): not in chain!\n");
 				return;
 			}
 		}
@@ -1004,7 +1005,7 @@ dombox_adopt (DOMBOX * This, DOMBOX * stepchild)
 		DOMBOX * before = parent->ChildBeg;
 		while (before->Sibling != stepchild) {
 			if ((before = before->Sibling) == NULL) {
-				puts ("dombox_adopt(): not in chain!");
+				errprintf ("dombox_adopt(): not in chain!\n");
 				return;
 			}
 		}
@@ -1126,7 +1127,7 @@ vTab_format (DOMBOX * This, long width, BLOCKER p_blocker)
 				 * So we will need to debug that code
 				 */
 			} else {
-				printf("ERROR: THIS SHOULD NOT HAPPEN !parent_box\r\n");
+				errprintf ("ERROR: THIS SHOULD NOT HAPPEN !parent_box\r\n");
 				parent_box = NULL;
 			}
 

@@ -3,6 +3,7 @@
 #include <gem.h>
 
 #include "global.h"
+#include "Logging.h"
 
 
 typedef struct form_window * FORMWIND;
@@ -182,7 +183,7 @@ vTab_moved (FORMWIND This)
 static BOOL
 dummy_handler (OBJECT * tree, WORD obj)
 {
-	printf ("dummy_handler(%i)\n", obj);
+	errprintf ("dummy_handler(%i)\n", obj);
 	return (obj < 0 || (tree[obj].ob_flags & OF_DEFAULT));
 }
 

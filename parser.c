@@ -15,6 +15,7 @@
 #endif
 
 #include "global.h"
+#include "Logging.h"
 #include "token.h"
 #include "scanner.h"
 #include "Loader.h"
@@ -197,7 +198,7 @@ stack_push (PARSPRIV prsdata, LOCATION loc, const char * ptr)
 {
 	short i = (short)numberof(prsdata->Stack) -1;
 	if (prsdata->Stack[i].Ptr || prsdata->Stack[i].Base) {
-		puts ("CSS stack_push(): overflow");
+		errprintf ("CSS stack_push(): overflow\n");
 		return FALSE;
 	}
 	
@@ -215,7 +216,7 @@ stack_pop (PARSPRIV prsdata, LOCATION * loc, const char ** ptr)
 {
 	short i;
 	if (!prsdata->Stack[0].Ptr && !prsdata->Stack[0].Base) {
-		puts ("CSS stack_pop(): underflow");
+		errprintf ("CSS stack_pop(): underflow\n");
 		if (loc) *loc = NULL;
 		if (ptr) *ptr = NULL;
 		return FALSE;
@@ -243,7 +244,7 @@ resume_job (void * arg, long invalidated)
 		if (loader->Error) {
 			char buf[1024];
 			location_FullName (loader->Location, buf, sizeof(buf));
-			printf ("not found: '%s'\n", buf);
+			errprintf ("not found: '%s'\n", buf);
 			parser->ResumeErr = loader->Error;
 		} else {
 			PARSPRIV prsdata = ParserPriv(parser);
@@ -276,7 +277,7 @@ parser_resume (PARSER parser, void * func, const char * ptr_sub)
 	parser->ResumePtr = ptr_sub;
 	if (!func && !ptr_sub) {
 		if (parser->ResumeErr == 2/*EBUSY*/) {
-			puts ("parser_resume(): busy");
+			errprintf ("parser_resume(): busy\n");
 		}
 		parser->ResumeErr = E_OK;
 	}
@@ -487,7 +488,7 @@ css_values (PARSER parser, const char * line, size_t len, LONG weight)
 					prsdata->KeyNum++;
 					ent->Weight = 0;
 				} else {
-					printf("KeyValTab overflow\r\n");
+					errprintf ("KeyValTab overflow\r\n");
 					/*printf("val %.*s  ent %d \r\n",10,val,css);*/
 				}
 			} else {
@@ -950,7 +951,7 @@ parse_css (PARSER parser, LOCATION loc, const char * p)
 	BOOL     err     = FALSE;
 	
 	if (parser->ResumeErr == 2/*EBUSY*/) {
-		puts ("parse_css(): busy");
+		errprintf ("parse_css(): busy\n");
 		return NULL;
 	}
 	if (loc) {

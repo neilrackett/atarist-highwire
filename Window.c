@@ -4,6 +4,7 @@
 #include <gem.h>
 
 #include "global.h"
+#include "Logging.h"
 #include "vaproto.h"
 
 #define WINDOW_t WINDOW
@@ -252,10 +253,9 @@ vTab_evKeybrd (WINDOW This, WORD scan, WORD ascii, UWORD kstate)
 	(void)scan;
 	(void)ascii;
 	(void)kstate;
-	printf ("window::evKeybrd (0x%02X,0x%02X,0x%04X)\n", scan, ascii, kstate);
+	errprintf ("window::evKeybrd (0x%02X,0x%02X,0x%04X)\n", scan, ascii, kstate);
 }
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-#include <stdio.h>
 void
 window_evKeybrd (UWORD key, UWORD kstate)
 {

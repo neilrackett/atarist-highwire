@@ -33,6 +33,7 @@ typedef struct s_input * INPUT;
 #endif
 
 #include "global.h"
+#include "Logging.h"
 #include "romvdi.h"
 #include "fontbase.h"
 #include "scanner.h"
@@ -634,7 +635,10 @@ new_input (PARSER parser, WORD width)
 		}
 		input = form_buttn (current, name, val, frame->Encoding, sub_type);
 
-	} else if (stricmp (output, "debug") == 0) {
+	} else if (stricmp (output, "debug") == 0 && logging_is_on) {
+		/* requested console dump, composed from fragments - plain printf so
+		 * the line stays in one piece, gated like the rest of the logging
+		 */
 		FORM  form = current->form;
 		INPUT inp  = form->InputList;
 		printf ("%s: %s%s", (form->Method == METH_POST ? "POST" : "GET"),

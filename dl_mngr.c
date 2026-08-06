@@ -8,6 +8,7 @@
 #include "file_sys.h"
 #include "vaproto.h"
 #include "global.h"
+#include "Logging.h"
 #include "schedule.h"
 #include "Location.h"
 #include "Loader.h"
@@ -551,7 +552,7 @@ dlmngr_handler (OBJECT * tree, WORD obj)
 				dlm_wind = NULL;
 			}
 		} else {
-			printf ("dlmngr_handler: %i\n", obj);
+			errprintf ("dlmngr_handler: %i\n", obj);
 		}
 	}
 	return FALSE;

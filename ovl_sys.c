@@ -26,6 +26,7 @@
 
 #include "defs.h"
 #include "ovl_sys.h"
+#include "Logging.h"
 
 
 typedef struct {
@@ -136,7 +137,7 @@ load_ovl (const char * ovl_name, void (*handler)(void*))
 	strcat (strcpy (file_path, "modules\\"), ovl_name);
 	ovl_basepage = (BASPAG *)pexec(3,file_path,NULL,NULL);
 	if ((long)ovl_basepage <= 0L) {
-		printf ("Pexec('%s') failed: %li\n", file_path, (long)ovl_basepage);
+		errprintf ("Pexec('%s') failed: %li\n", file_path, (long)ovl_basepage);
 		return NULL;
 	
 	} else {
@@ -146,11 +147,11 @@ load_ovl (const char * ovl_name, void (*handler)(void*))
 			OVL_METH * m = (OVL_METH*)ptr;
 			long       r = m->revision & 0x88888888uL;
 			if (m->revision & ((r >>1) | (r >>2))) {      /* check for valid BCD */
-				printf ("OVL: infalid revision %08lX\n", m->revision);
+				errprintf ("OVL: infalid revision %08lX\n", m->revision);
 			} else if (m->revision < OVL_REVISION) {             /* compare date */
-				printf ("OVL: too old %08lX\n", m->revision);
+				errprintf ("OVL: too old %08lX\n", m->revision);
 			} else if (&m->magic != m->magic_l) {            /* additional check */
-				printf ("OVL: invalid format (0x%lX/0x%lX)\n",
+				errprintf ("OVL: invalid format (0x%lX/0x%lX)\n",
 				        (long)&m->magic, (long)m->magic_l);
 			} else {
 				ovl_methods = m;

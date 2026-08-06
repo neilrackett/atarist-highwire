@@ -57,7 +57,7 @@ decPng_start (const char * name, IMGINFO info)
 	if (!png_ptr || (info_ptr = png_create_info_struct (png_ptr)) == NULL) {
 		png_destroy_read_struct (&png_ptr, &info_ptr, NULL);
 		fclose (file);
-		puts ("decPng_start(): low memory.");
+		errprintf ("decPng_start(): low memory.\n");
 		return TRUE;
 	}
 	if (setjmp (png_jmpbuf (png_ptr))) {

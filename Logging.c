@@ -21,7 +21,9 @@ BOOL logging_is_on = FALSE;
 
 void init_logging(void)
 {
-	fprintf(stdout, "\33H\33v");  /* cursor home, enable line wrap */
+	if (logging_is_on) {
+		fprintf(stdout, "\33H\33v");  /* cursor home, enable line wrap */
+	}
 }
 
 
@@ -36,6 +38,11 @@ void init_logging(void)
 void errprintf(const char *s, ...)
 {
 	va_list arglist;
+
+	/* Without a console the VT52 output would scribble over the GEM screen,
+	 * so keep quiet unless the user asked for logging.
+	 */
+	if (!logging_is_on) return;
 
 	if (!ignore_colours)
 		fprintf(stderr, "\33c7\33b1HighWire: ");  /* print error line in red */

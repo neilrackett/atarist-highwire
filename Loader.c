@@ -17,6 +17,7 @@
 
 #include "file_sys.h"
 #include "global.h"
+#include "Logging.h"
 #include "hwWind.h"
 #include "vaproto.h"
 /* #include "av_comm.h" */
@@ -387,7 +388,7 @@ start_objc_load (CONTAINR target, const char * url, LOCATION base,
 		loader->SuccJob = generic_job;
 	
 	} else {
-		printf ("start_objc_load(%s) dropped.\n", loc->FullName);
+		errprintf ("start_objc_load(%s) dropped.\n", loc->FullName);
 		delete_loader (&loader);
 		return NULL;
 	}
@@ -403,7 +404,7 @@ start_objc_load (CONTAINR target, const char * url, LOCATION base,
 #endif
 	
 	} else {
-		printf ("start_objc_load() invalid protocol %i.\n", loc->Proto);
+		errprintf ("start_objc_load() invalid protocol %i.\n", loc->Proto);
 		loader->Error = -EPROTONOSUPPORT;
 		(*loader->SuccJob)(loader, 0);
 		loader = NULL;
@@ -471,7 +472,7 @@ chunked_job (void * arg, long invalidated)
 					loader->rdTlen -= data - loader->rdTemp;
 				}
 			} else if (loader->rdTlen == sizeof(loader->rdTemp)) {
-				printf ("rotten chunk header\n");
+				errprintf ("rotten chunk header\n");
 				loader->rdDest = NULL;
 				loader->rdLeft = 0;
 				break;
@@ -685,7 +686,7 @@ header_job (void * arg, long invalidated)
 				return JOB_DONE;
 			
 			} else { /* cache inconsistance error */
-				printf ("header_job(%s): not in cache!\n", loc->FullName);
+				errprintf ("header_job(%s): not in cache!\n", loc->FullName);
 				return header_job (arg, (long)loader->Target); /* invalidate */
 			}
 		} /*break;*/
@@ -976,10 +977,10 @@ generic_job (void * arg, long invalidated)
 		LOCATION loc = (loader->Cached ? loader->Cached : loader->Location);
 		
 		if (!loader->ExtAppl) {
-			printf("generic_job(): no appl found!\n");
+			errprintf ("generic_job(): no appl found!\n");
 		
 		} else if (PROTO_isRemote (loc->Proto)) {
-			printf("generic_job(): not in cache!\n");
+			errprintf ("generic_job(): not in cache!\n");
 		
 		} else {
 			start_application (loader->ExtAppl, loc);
@@ -1008,7 +1009,7 @@ saveas_job (void * arg, long invalidated)
 		LOCATION remote = loader->Location;
 
 		if (PROTO_isRemote (loc->Proto)) {
-			printf("saveas_job(): not in cache!\n");
+			errprintf ("saveas_job(): not in cache!\n");
 		
 		} else {
 			/* get cache file size */
@@ -1016,7 +1017,7 @@ saveas_job (void * arg, long invalidated)
 
 			if (fsize <= 0)
 			{
-				printf("saveas_job(): file empty skipping\r\n");
+				hwUi_warn ("Save as", "File is empty, nothing saved.");
 				goto saveas_bottom;
 			}
 
@@ -1049,10 +1050,10 @@ saveas_job (void * arg, long invalidated)
 					fh1 = open (va_helpbuf, O_RDONLY);
 					
 					if (fh1 < 0) {
-							printf("saveas_job(): file not found in cache\r\n");
+							hwUi_warn ("Save as", "File not found in cache.");
 							close (fh2);
 							goto saveas_bottom;
-						} 
+						}
 
 					/* max 32k buffer to read/write */
 					if (fsize < 32000)
@@ -1065,7 +1066,7 @@ saveas_job (void * arg, long invalidated)
 					if (!buffer) {
 						close (fh1);
 						close (fh2);
-						printf("saveas_job(): memory malloc error\r\n");
+						hwUi_warn ("Save as", "Not enough memory left!");
 						goto saveas_bottom;
 					}
 														
@@ -1084,7 +1085,7 @@ saveas_job (void * arg, long invalidated)
 					free(buffer);
 					
 				} else {
-					printf("File creation error\r\n");
+					hwUi_warn ("Save as", "Cannot create target file.");
 				}
 				/* We don't worry about the else as all is done above */
 			}

@@ -60,7 +60,7 @@ decJpg_start (const char * name, IMGINFO info)
 	
 	} else if ((jpeg = malloc (sizeof(struct jpeg_decompress_struct))) == NULL ||
 	           (jerr = malloc (sizeof(struct jpeg_error_mgr)))         == NULL) {
-		puts ("decJpg_start(): low memory.");
+		errprintf ("decJpg_start(): low memory.\n");
 		if (jerr) free   (jerr);
 		if (jpeg) free   (jpeg);
 		if (file) fclose (file);

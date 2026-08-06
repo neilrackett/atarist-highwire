@@ -5,6 +5,7 @@
 #endif
 
 #include "global.h"
+#include "Logging.h"
 #include "token.h"
 #include "fontbase.h"
 
@@ -264,7 +265,7 @@ void paragrph_finish (TEXTBUFF current)
 	
 	if (current->paragraph) {
 		if (!current->word) {
-			printf ("paragrph_finish() ERROR: no current->word!\n");
+			errprintf ("paragrph_finish() ERROR: no current->word!\n");
 			return;
 		}
 		

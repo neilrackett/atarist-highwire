@@ -5,6 +5,7 @@
 #include <gemx.h>
 
 #include "global.h"
+#include "Logging.h"
 #include "romvdi.h"
 #include "Form.h"
 #include "fontbase.h"
@@ -489,7 +490,7 @@ draw_paragraph (PARAGRPH paragraph,
 		return y_off; /* nothing to do */
 	
 	} else if (!line->Word) {
-		puts ("draw_paragraph(): empty line!");
+		errprintf ("draw_paragraph(): empty line!\n");
 		return 0;
 	}
 	
@@ -513,10 +514,10 @@ draw_paragraph (PARAGRPH paragraph,
 			short y = y_abs;
 
 		 	if (!word) {
-		 		puts ("draw_paragraph(): empty line (3)!");
+		 		errprintf ("draw_paragraph(): empty line (3)!\n");
 		 		break;
 		 	} else if (!word->item) {
-		 		puts ("draw_paragraph(): empty word (2)!");
+		 		errprintf ("draw_paragraph(): empty word (2)!\n");
 		 		break;
 		 	}
 

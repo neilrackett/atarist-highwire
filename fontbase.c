@@ -4,6 +4,7 @@
 #include <gemx.h>
 
 #include "global.h"
+#include "Logging.h"
 #include "romvdi.h"
 #include "fontbase.h"
 
@@ -13,7 +14,7 @@ void
 font_setup (UWORD id, WORD type, BOOL bold, BOOL italic)
 {
 	if (vst_font (vdi_handle, id) != id) {
-		printf ("font #%i for '%s%s%s' not available.\n", id,
+		errprintf ("font #%i for '%s%s%s' not available.\n", id,
 		        (type == normal_font ? "normal" :
 		         type == header_font ? "header" : "pre"),
 		         (bold ? ",bold" : ""), (italic ? ",italic" : ""));
@@ -25,7 +26,7 @@ font_setup (UWORD id, WORD type, BOOL bold, BOOL italic)
 		vqt_extent (vdi_handle, ".", pts);   w1 = pts[2] - pts[0];
 		vqt_extent (vdi_handle, "W", pts);   w2 = pts[2] - pts[0];
 		if (w1 != w2) {
-			printf ("font #%i for 'pre%s%s' is not monospace (%i/%i), ignored.\n",
+			errprintf ("font #%i for 'pre%s%s' is not monospace (%i/%i), ignored.\n",
 			        id, (bold ? ",bold" : ""), (italic ? ",italic" : ""), w1, w2);
 			id = 0;
 		}

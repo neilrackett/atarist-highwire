@@ -26,8 +26,9 @@ static WORD sockets_free = 0;
 #endif
 
 
+#include "Logging.h"
+#include "global.h" /* hwUi_warn() */
 #if defined(_USE_OVL_) /*******************************************************/
-# include <stdio.h>
 # include "ovl_sys.h"
 
 static OVL_METH  * inet_ovl  = NULL;
@@ -68,7 +69,7 @@ static BOOL ovl_load(void)
 	} else if (inet_ovl->ftabtype != FTAB_NETWORK ||
 	           (*inet_ovl->ovl_init)() < INET_VERSION ||
 	           (ovl_ftab = (*inet_ovl->ovl_getftab)()) == NULL) {
-		puts ("inet::ovl_load(): wrong network.ovl!");
+		errprintf ("inet::ovl_load(): wrong network.ovl!\n");
 		inet_ovl = NULL;
 		kill_ovl (inet_ovl);
 		return FALSE;    /* wrong OVL */
@@ -354,7 +355,11 @@ inet_connect (long addr, long port, long tout_sec)
 
 #elif defined(USE_STIK)
 	if (!init_stik()) {
-		puts ("No STiK/Sting");
+		static BOOL warned = FALSE;
+		if (!warned) { /* once, and only when going online was actually tried */
+			hwUi_warn ("inet", "No STiK/STinG network layer found.");
+			warned = TRUE;
+		}
 	} else if (sockets_free <= 0) {
 		fh = -35/*EMFILE*/;
 	} else {
@@ -416,7 +421,7 @@ inet_send (long fh, const char * buf, size_t len)
 
 #elif defined(USE_STIK)
 	if (!tpl) {
-		puts ("No STiK/Sting");
+		errprintf ("No STiK/Sting\n");
 	} else while (len) {
 		int16 n = (int16)min(len, TCP_OBUFF_SIZE);
 		int16 r;
@@ -483,7 +488,7 @@ inet_recv (long fh, char * buf, size_t len)
 
 #elif defined(USE_STIK)
 	if (!tpl) {
-		puts ("No STiK/Sting");
+		errprintf ("No STiK/Sting\n");
 		ret = -1;
 	} else while (len) {
 		short n = CNbyte_count ((int)fh);
@@ -528,7 +533,7 @@ inet_close (long fh)
 
 	#elif defined(USE_STIK)
 		if (!tpl) {
-			puts ("No STiK/Sting");
+			errprintf ("No STiK/Sting\n");
 		} else {
 			if (TCP_close ((int)fh, 0, NULL) == 0) sockets_free++;
 		}
@@ -556,7 +561,7 @@ inet_instat (long fh)
 
 #elif defined(USE_STIK)
 	if (!tpl) {
-		puts ("No STiK/Sting");
+		errprintf ("No STiK/Sting\n");
 	} else {
 		ret = CNbyte_count ((int)fh);
 		if (ret < E_NODATA) {
