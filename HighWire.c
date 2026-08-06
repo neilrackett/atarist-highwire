@@ -73,6 +73,66 @@ static void set_timer (long msec)
 }
 
 
+#ifdef GEM_MENU
+/*------------------------------------------------------------------------------
+ * The RSC menu is laid out for a 640 pixel screen; in ST/TT low the last
+ * titles fall off the right edge and wrap round.  If the measured title row
+ * is wider than the screen, swap the long titles for short ones and pack
+ * the boxes again, keeping each pulldown under its title and on screen.
+ */
+static void
+menu_fit (OBJECT * menu)
+{
+	WORD scrn_w = vdi_dev.xres +1;
+	WORD bar    = menu[0].ob_head;
+	WORD active = menu[bar].ob_head;
+	WORD drops  = menu[0].ob_tail;
+	WORD title, drop, x;
+	WORD pass;
+
+	if (menu[active].ob_x + menu[active].ob_width <= scrn_w) {
+		return; /* fits as it is */
+	}
+
+	/* First pass tightens the titles to their exact text widths.  If that
+	 * is still too wide the second pass also drops History: its pulldown
+	 * is wider than a 320 pixel screen (which overflows the AES's menu
+	 * save area), and every window offers the history anyway.
+	 */
+	for (pass = 0; pass < 2; pass++) {
+		title = menu[active].ob_head;
+		drop  = menu[drops].ob_head;
+		x     = 0;
+		while (title != active && drop != drops) {
+			char * str = *(char**)&menu[title].ob_spec;
+			if (pass && strcmp (str, " History") == 0) {
+				menu[title].ob_flags |= OF_HIDETREE;
+				menu[drop].ob_flags  |= OF_HIDETREE;
+			}
+			if (!(menu[title].ob_flags & OF_HIDETREE)) {
+				menu[title].ob_x     = x;
+				menu[title].ob_width = (WORD)strlen (str) * vdi_dev.wchar;
+				x += menu[title].ob_width;
+
+				menu[drop].ob_x = menu[active].ob_x + menu[title].ob_x;
+				if (menu[drop].ob_x + menu[drop].ob_width > scrn_w) {
+					menu[drop].ob_x = scrn_w - menu[drop].ob_width;
+					if (menu[drop].ob_x < 0) {
+						menu[drop].ob_x = 0;
+					}
+				}
+			}
+			title = menu[title].ob_next;
+			drop  = menu[drop].ob_next;
+		}
+		menu[active].ob_width = x;
+		if (menu[active].ob_x + x <= scrn_w) {
+			break;
+		}
+	}
+}
+#endif
+
 /*============================================================================*/
 int
 main (int argc, char **argv)
@@ -164,6 +224,7 @@ main (int argc, char **argv)
 	rsrc_gaddr (R_TREE, RIMGPOP,  &rpopimg);
 	rsrc_gaddr (R_TREE, RBKMPOP,  &rpopbkm);
 
+	menu_fit    (menutree);
 	menu_bar    (menutree, MENU_INSTALL);
 	menu_icheck (menutree, M_COOKIES, cfg_AllowCookies);
 	menu_icheck (menutree, M_IMAGES,  cfg_ViewImages);
