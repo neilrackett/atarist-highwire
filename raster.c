@@ -92,7 +92,7 @@ raster_stnd (IMGINFO info, void * _dst)
 	UWORD   pixel = 0x8000;
 	do {
 		/* cnvpal_4_8() keeps the device pixel value in the top byte */
-		short   color = *(CHAR*)&map[(UWORD)info->RowBuf[x >>16] & mask];
+		short   color = (short)(map[(UWORD)info->RowBuf[x >>16] & mask] >>24);
 		UWORD * chunk = dst;
 		short   i     = planes;
 		do {
@@ -121,6 +121,8 @@ gscale_stnd (IMGINFO info, void * _dst)
 	short   width = info->DthWidth;
 	size_t  x     = (info->IncXfx +1) /2;
 	short * buf   = info->DthBuf;
+	short   black = pixel_val[G_BLACK];
+	short   white = pixel_val[G_WHITE];
 	short   ins   = 0;
 	UWORD   pixel = 0x8000;
 	do {
@@ -129,9 +131,9 @@ gscale_stnd (IMGINFO info, void * _dst)
 		short   i     = planes;
 		ins += *buf + (short)info->RowBuf[x >>16];
 		if (ins < 0x80) {
-			color = pixel_val[G_BLACK];
+			color = black;
 		} else {
-			color = pixel_val[G_WHITE];
+			color = white;
 			ins  -= 0xFF;
 		}
 		*(buf++) = (ins >>= 2);
@@ -157,6 +159,8 @@ dither_stnd (IMGINFO info, void * _dst)
 	short   width = info->DthWidth;
 	size_t  x     = (info->IncXfx +1) /2;
 	short * buf   = info->DthBuf;
+	short   black = pixel_val[G_BLACK];
+	short   white = pixel_val[G_WHITE];
 	short   ins   = 0;
 	UWORD   pixel = 0x8000;
 	do {
@@ -166,9 +170,9 @@ dither_stnd (IMGINFO info, void * _dst)
 		CHAR  * rgb   = &info->RowBuf[(x >>16) *3];
 		ins += *buf + (WORD)rgb[0] *5 + (WORD)rgb[1] *9 + (WORD)rgb[2] *2;
 		if (ins < 2040) {
-			color = pixel_val[G_BLACK];
+			color = black;
 		} else {
-			color = pixel_val[G_WHITE];
+			color = white;
 			ins  -= 4080;
 		}
 		*(buf++) = (ins >>= 2);

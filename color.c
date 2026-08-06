@@ -1,7 +1,6 @@
 /* @(#)highwire/color.c
  */
 #include <stddef.h> /* for size_t */
-#include <stdlib.h>
 #include <gem.h>
 
 #include "global.h"
@@ -13,12 +12,10 @@ typedef struct {
 } SRGB;
 static SRGB screen_colortab[256]; /* used to save colors */
 
-#define GREY_1ST  2  /* first pen recoloured to grey */
-#define GREY_PENS 2
 BOOL color_GreyRamp = FALSE; /* TRUE while the grey palette is installed */
 
-static WORD (* pal_saved)[3] = NULL; /* the palette as we found it */
-static WORD    pal_count     = 0;
+static WORD pal_saved[256][3]; /* the palette as we found it */
+static WORD pal_count = 0;
 
 /* tables predefined for fixed color map enabled, otherwise overwritten by the
  * values of the color map at start time
@@ -128,11 +125,9 @@ save_colors(void)
 	/* Keep the palette as we found it: it is global on the ST and TT, so
 	 * whatever gets recoloured below would outlive us without this.
 	 */
-	if ((pal_saved = malloc (res_colors * sizeof *pal_saved)) != NULL) {
-		pal_count = res_colors;
-		for (i = 0; i < pal_count; i++) {
-			vq_color (vdi_handle, i, 1, pal_saved[i]);
-		}
+	pal_count = res_colors; /* at most 256 */
+	for (i = 0; i < pal_count; i++) {
+		vq_color (vdi_handle, i, 1, pal_saved[i]);
 	}
 
 	if ((cfg_FixedCmap && planes == 8) || planes > 8) {
@@ -159,11 +154,11 @@ save_colors(void)
 		/* raster.c's *_G2 dithers rely on this ramp: with the ST pen map it
 		 * puts hardware pixels 0..3 in luminance order white, 667, 333, black.
 		 */
-		static const WORD grey[GREY_PENS] = { 667, 333 };  /* VDI units, 0..1000 */
-		for (i = 0; i < GREY_PENS; i++) {
+		static const WORD grey[2] = { 667, 333 };  /* pens 2 and 3, VDI units */
+		for (i = 0; i < (int)numberof(grey); i++) {
 			WORD coltab[3];
 			coltab[0] = coltab[1] = coltab[2] = grey[i];
-			vs_color (vdi_handle, GREY_1ST + i, coltab);
+			vs_color (vdi_handle, i + 2, coltab);
 		}
 		color_GreyRamp = TRUE;
 	}
@@ -200,8 +195,6 @@ color_restore (void)
 		vs_color (vdi_handle, i, pal_saved[i]);
 	}
 	pal_count = 0;
-	free (pal_saved);
-	pal_saved = NULL;
 }
 
 

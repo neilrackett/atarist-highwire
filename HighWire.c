@@ -104,8 +104,8 @@ menu_fit (OBJECT * menu)
 		drop  = menu[drops].ob_head;
 		x     = 0;
 		while (title != active && drop != drops) {
-			char * str = *(char**)&menu[title].ob_spec;
-			if (pass && strcmp (str, " History") == 0) {
+			char * str = menu[title].ob_spec.free_string;
+			if (pass && title == M_HISTORY) {
 				menu[title].ob_flags |= OF_HIDETREE;
 				menu[drop].ob_flags  |= OF_HIDETREE;
 			}

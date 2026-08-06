@@ -1375,7 +1375,7 @@ draw_toolbar (HwWIND This, const GRECT * p_clip, BOOL all)
 					vs_clip_pxy (vdi_handle, p +1);
 					/* Stays on the full system font rather than the small face
 					 * the info bar uses: the caret maths below steps in whole
-					 * 8 pixel cells, which only holds for that one.
+					 * system font cells, which only holds for that one.
 					 */
 					sys_font_setup (vdi_dev.hchar);
 					vst_effects   (vdi_handle, TXT_NORMAL);
@@ -1388,11 +1388,8 @@ draw_toolbar (HwWIND This, const GRECT * p_clip, BOOL all)
 			}
 			if (actv) {
 				vs_clip_pxy (vdi_handle, (PXY*)&clip);
-				/* The system font is 8 pixels wide in every resolution, but
-				 * only 8 tall in ST low/medium against 16 in ST high, so the
-				 * caret has to follow the cell rather than assume the tall one.
-				 */
-				p[1].p_x = (p[0].p_x += (edit->Cursor - edit->Shift) *8 -1) +1;
+				p[1].p_x = (p[0].p_x += (edit->Cursor - edit->Shift)
+				                        * vdi_dev.wchar -1) +1;
 				p[1].p_y =  p[0].p_y + vdi_dev.hchar;
 				vswr_mode (vdi_handle, MD_XOR);
 				v_bar     (vdi_handle, &p[0].p_x);
