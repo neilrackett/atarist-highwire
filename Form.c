@@ -2331,8 +2331,12 @@ edit_init (INPUT input, TEXTBUFF current, UWORD cols, UWORD rows, size_t size)
 	if (word->font->Base->Mapping != MAP_UNICODE) {
 		hw_vst_map_mode (vdi_handle, MAP_UNICODE);
 	}
+	/* measure the cells just written: word->item still points at the shared
+	 * empty word here, which the ROM VDI path reads as a NUL terminated -
+	 * hence empty - string, collapsing the field to its padding.
+	 */
 	for (n = 0; n < cols; current->text[n++] = NOBRK_UNI);
-	hw_vqt_f_extent16n (vdi_handle, word->item, cols, p);
+	hw_vqt_f_extent16n (vdi_handle, current->text, cols, p);
 	*(current->text++) = word->font->Base->SpaceCode;
 	set_word (current, word->word_height, word->word_tail_drop, p[2] - p[0] +2);
 	if (word->font->Base->Mapping != MAP_UNICODE) {
