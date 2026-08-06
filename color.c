@@ -1,6 +1,7 @@
 /* @(#)highwire/color.c
  */
 #include <stddef.h> /* for size_t */
+#include <stdlib.h>
 #include <gem.h>
 
 #include "global.h"
@@ -14,8 +15,10 @@ static SRGB screen_colortab[256]; /* used to save colors */
 
 #define GREY_1ST  2  /* first pen recoloured to grey */
 #define GREY_PENS 2
-static WORD grey_saved[GREY_PENS][3]; /* those pens as we found them */
 BOOL color_GreyRamp = FALSE; /* TRUE while the grey palette is installed */
+
+static WORD (* pal_saved)[3] = NULL; /* the palette as we found it */
+static WORD    pal_count     = 0;
 
 /* tables predefined for fixed color map enabled, otherwise overwritten by the
  * values of the color map at start time
@@ -121,7 +124,17 @@ save_colors(void)
 	static BOOL _once = TRUE;
 	if (!_once) return;
 	_once = FALSE;
-	
+
+	/* Keep the palette as we found it: it is global on the ST and TT, so
+	 * whatever gets recoloured below would outlive us without this.
+	 */
+	if ((pal_saved = malloc (res_colors * sizeof *pal_saved)) != NULL) {
+		pal_count = res_colors;
+		for (i = 0; i < pal_count; i++) {
+			vq_color (vdi_handle, i, 1, pal_saved[i]);
+		}
+	}
+
 	if ((cfg_FixedCmap && planes == 8) || planes > 8) {
 		color_mapsetup();
 		color_FixedMap = TRUE;
@@ -149,10 +162,6 @@ save_colors(void)
 		static const WORD grey[GREY_PENS] = { 667, 333 };  /* VDI units, 0..1000 */
 		for (i = 0; i < GREY_PENS; i++) {
 			WORD coltab[3];
-			/* Keep the originals: the ST palette is global, so leaving the
-			 * desktop grey after we quit would not be ours to do.
-			 */
-			vq_color (vdi_handle, GREY_1ST + i, 1, grey_saved[i]);
 			coltab[0] = coltab[1] = coltab[2] = grey[i];
 			vs_color (vdi_handle, GREY_1ST + i, coltab);
 		}
@@ -179,19 +188,20 @@ save_colors(void)
 
 
 /*==============================================================================
- * Puts back whatever palette entries we overwrote.  The ST palette is global,
- * so without this the desktop would stay grey after HighWire quits.
+ * Puts back the palette we found at startup.  It is global, so without this
+ * the desktop would keep our greys (ST medium) or colour cube (FIXED_CMAP)
+ * after HighWire quits.
 */
 void
 color_restore (void)
 {
-	if (color_GreyRamp) {
-		WORD i;
-		for (i = 0; i < GREY_PENS; i++) {
-			vs_color (vdi_handle, GREY_1ST + i, grey_saved[i]);
-		}
-		color_GreyRamp = FALSE;
+	WORD i;
+	for (i = 0; i < pal_count; i++) {
+		vs_color (vdi_handle, i, pal_saved[i]);
 	}
+	pal_count = 0;
+	free (pal_saved);
+	pal_saved = NULL;
 }
 
 
