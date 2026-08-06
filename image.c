@@ -10,6 +10,7 @@
 #endif
 
 #include "global.h"
+#include "Logging.h"
 #include "image_P.h"
 #include "Location.h"
 #include "Containr.h"
@@ -53,6 +54,47 @@ set_word (IMAGE img)
 	}
 	word->word_tail_drop = max (0, h - word->word_height + img->vspace);
 	word->word_width = img->disp_w + (img->hspace * 2);
+}
+
+/*----------------------------------------------------------------------------*/
+/* scale v by the 16.16 factor, rounded, at least 1 */
+static short
+squash (short v, ULONG ffx)
+{
+	v = (short)(((ULONG)v * ffx + 0x8000uL) >>16);
+	return (v > 0 ? v : 1);
+}
+
+/* Where screen pixels are far from square, squash the display size's long
+ * axis by the reported pixel size so pictures keep their real world aspect
+ * ratio: the height on tall pixels (ST medium), the width on wide ones
+ * (TT low).  Screen shape and factor are constant, so decide them once.
+ */
+static void
+aspect_adjust (IMAGE img)
+{
+	static WORD  axis = -1;
+	static ULONG ffx;
+
+	if (axis < 0) {
+		WORD wp = vdi_dev.wpixel;
+		WORD hp = vdi_dev.hpixel;
+		axis = 0;
+		if (cfg_ImgAspect && wp > 0 && hp > 0) {
+			if (hp >= wp + wp /2) {
+				axis = 'h';
+				ffx  = (((ULONG)wp <<16) + hp /2) / hp;
+			} else if (wp >= hp + hp /2) {
+				axis = 'w';
+				ffx  = (((ULONG)hp <<16) + wp /2) / wp;
+			}
+		}
+	}
+	if (axis == 'h') {
+		img->disp_h = squash (img->disp_h, ffx);
+	} else if (axis == 'w') {
+		img->disp_w = squash (img->disp_w, ffx);
+	}
 }
 
 
@@ -136,19 +178,17 @@ new_image (FRAME frame, TEXTBUFF current, const char * file, LOCATION base,
 		if (!h) h = (hash     ) & 0x0FFF;
 	}
 	
-	if (blocked) {
-		img->disp_w = (w > 0 ? w : 1);
-		img->disp_h = (h > 0 ? h : 1);
-		set_word (img);
-	} else {
-		img->disp_w = (w > 0 ? w : 16);
-		img->disp_h = (h > 0 ? h : 16);
-		set_word (img);
-		
-		if (!img->u.Data && (cfg_ViewImages || win_image)) {
-			if (sched_insert (image_job, img, (long)img->frame->Container, 1)) {
-				containr_notify (img->frame->Container, HW_ActivityBeg, NULL);
-			}
+	{
+		short fb = (blocked ? 1 : 16); /* fallback for unsized images */
+		img->disp_w = (w > 0 ? w : fb);
+		img->disp_h = (h > 0 ? h : fb);
+	}
+	aspect_adjust (img); /* so the placeholder matches the later rendering */
+	set_word (img);
+
+	if (!blocked && !img->u.Data && (cfg_ViewImages || win_image)) {
+		if (sched_insert (image_job, img, (long)img->frame->Container, 1)) {
+			containr_notify (img->frame->Container, HW_ActivityBeg, NULL);
 		}
 	}
 	
@@ -164,11 +204,11 @@ delete_image (IMAGE * _img)
 		if (img->u.Data) {
 			CACHEOBJ cob = cache_release ((CACHED*)&img->u.Data, FALSE);
 			if (cob) {
-				printf ("delete_image(): remove cached\n   '%s%s'\n",
+				errprintf ("delete_image(): remove cached\n   '%s%s'\n",
 				        location_Path (img->source, NULL), img->source->File);
 				free (cob);
 			} else if (img->u.Mfdb) {
-				printf ("delete_image(): not in cache\n   '%s%s'\n",
+				errprintf ("delete_image(): not in cache\n   '%s%s'\n",
 				        location_Path (img->source, NULL), img->source->File);
 				free (img->u.Mfdb);
 				img->u.Mfdb = NULL;
@@ -218,20 +258,19 @@ void reload_image(IMAGE * _img)
 }
 
 /*----------------------------------------------------------------------------*/
-/* scale v by num/den, rounded, at least 1 */
-static short
-squash (short v, WORD num, WORD den)
-{
-	v = (short)(((long)v * num + den /2) / den);
-	return (v > 0 ? v : 1);
-}
-
-/*----------------------------------------------------------------------------*/
 static void
 img_scale (IMAGE img, short img_w, short img_h, IMGINFO info)
 {
 	size_t  scale_x = 0x10000uL; /* to avoid a  */
 	size_t  scale_y = 0x10000uL; /* gcc warning */
+	short   old_w, old_h;
+
+	/* the display size doubles as the scaling target below; re-derive it
+	 * from absolute attributes so repeated calls (and the placeholder's
+	 * aspect_adjust) cannot squash it twice
+	 */
+	if (img->set_w > 0) img->disp_w = img->set_w;
+	if (img->set_h > 0) img->disp_h = img->set_h;
 
 	/* calculate scaling steps (32bit fix point) */
 	
@@ -279,29 +318,20 @@ img_scale (IMAGE img, short img_w, short img_h, IMGINFO info)
 		img->disp_h = img_h;
 	}
 
-	/* Where screen pixels are far from square, squash the long axis by the
-	 * reported pixel size so pictures keep their real world aspect ratio:
-	 * the height on tall pixels (ST medium), the width on wide ones (TT low).
-	 * The scale steps are only owed to rasterizing callers (info set); the
+	old_w = img->disp_w;
+	old_h = img->disp_h;
+	aspect_adjust (img);
+
+	/* The scale steps are only owed to rasterizing callers (info set); the
 	 * layout paths just need the display size.
 	 */
-	if (cfg_ImgAspect && vdi_dev.wpixel > 0 && vdi_dev.hpixel > 0) {
-		if (vdi_dev.hpixel >= vdi_dev.wpixel + vdi_dev.wpixel /2) {
-			img->disp_h = squash (img->disp_h, vdi_dev.wpixel, vdi_dev.hpixel);
-			if (info) {
-				scale_y = (((size_t)img_h <<16) + (img->disp_h /2))
-				        / img->disp_h;
-			}
-		} else if (vdi_dev.wpixel >= vdi_dev.hpixel + vdi_dev.hpixel /2) {
-			img->disp_w = squash (img->disp_w, vdi_dev.hpixel, vdi_dev.wpixel);
-			if (info) {
-				scale_x = (((size_t)img_w <<16) + (img->disp_w /2))
-				        / img->disp_w;
-			}
-		}
-	}
-
 	if (info) {
+		if (img->disp_w != old_w) {
+			scale_x = (((size_t)img_w <<16) + (img->disp_w /2)) / img->disp_w;
+		}
+		if (img->disp_h != old_h) {
+			scale_y = (((size_t)img_h <<16) + (img->disp_h /2)) / img->disp_h;
+		}
 		info->IncXfx = scale_x;
 		info->IncYfx = scale_y;
 	}
@@ -329,11 +359,11 @@ image_calculate (IMAGE img, short par_width)
 			if (img->u.Data) {
 				CACHEOBJ cob = cache_release ((CACHED*)&img->u.Data, TRUE);
 				if (cob) {
-					printf ("image_calculate(): remove cached\n   '%s%s'\n",
+					errprintf ("image_calculate(): remove cached\n   '%s%s'\n",
 					        location_Path (img->source, NULL), img->source->File);
 					free (cob);
 				} else if (img->u.Mfdb) {
-					printf ("image_calculate(): not in cache\n   '%s%s'\n",
+					errprintf ("image_calculate(): not in cache\n   '%s%s'\n",
 					        location_Path (img->source, NULL), img->source->File);
 					free (img->u.Mfdb);
 					img->u.Mfdb = NULL;
