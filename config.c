@@ -28,6 +28,7 @@ BOOL         cfg_DropImages   = FALSE;
 BOOL         cfg_ViewImages   = TRUE;
 BOOL         cfg_FixedCmap    = FALSE;
 BOOL         cfg_GreyPalette  = TRUE;
+BOOL         cfg_ImgAspect    = TRUE;
 BOOL         cfg_UseCSS       = TRUE;
 BOOL         cfg_HotlistOpen  = FALSE;
 BOOL         cfg_AVWindow     = FALSE;
@@ -679,6 +680,7 @@ read_config(void)
 				{ "HIGHWIRE",             cfg_up2date,   0 },
 				{ "HOTLIST_OPEN",         cfg_BOOL,      (long)&cfg_HotlistOpen },
 				{ "HTTP_PROXY",           cfg_http_proxy,0 },
+				{ "IMG_ASPECT",           cfg_BOOL,      (long)&cfg_ImgAspect   },
 				{ "INFOBAR",              cfg_infobar,   0 },
 				{ "ITALIC_HEADER",        cfg_font,      FA(header_font, 0, 1)  },
 				{ "ITALIC_NORMAL",        cfg_font,      FA(normal_font, 0, 1)  },

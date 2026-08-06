@@ -269,7 +269,26 @@ img_scale (IMAGE img, short img_w, short img_h, IMGINFO info)
 	} else {
 		img->disp_h = img_h;
 	}
-		
+
+	/* Where screen pixels are far from square, squash the long axis by the
+	 * reported pixel size so pictures keep their real world aspect ratio:
+	 * the height on tall pixels (ST medium), the width on wide ones (TT low).
+	 */
+	if (cfg_ImgAspect && vdi_dev.wpixel > 0 && vdi_dev.hpixel > 0) {
+		if (vdi_dev.hpixel >= vdi_dev.wpixel + vdi_dev.wpixel /2) {
+			short h = (short)(((long)img->disp_h * vdi_dev.wpixel
+			                   + vdi_dev.hpixel /2) / vdi_dev.hpixel);
+			img->disp_h = (h > 0 ? h : 1);
+			scale_y = (((size_t)img_h <<16) + (img->disp_h /2)) / img->disp_h;
+
+		} else if (vdi_dev.wpixel >= vdi_dev.hpixel + vdi_dev.hpixel /2) {
+			short w = (short)(((long)img->disp_w * vdi_dev.hpixel
+			                   + vdi_dev.wpixel /2) / vdi_dev.wpixel);
+			img->disp_w = (w > 0 ? w : 1);
+			scale_x = (((size_t)img_w <<16) + (img->disp_w /2)) / img->disp_w;
+		}
+	}
+
 	if (info) {
 		info->IncXfx = scale_x;
 		info->IncYfx = scale_y;
