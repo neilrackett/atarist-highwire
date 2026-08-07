@@ -174,11 +174,23 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 			same->Next = font;
 		
 		} else {
+			WORD eff[3];
 			font->Base = base;
 			font->Next = base->List;
 			base->List = font;
-			vqt_fontinfo (vdi_handle, u,u, dist, u,u);
+			vqt_fontinfo (vdi_handle, u,u, dist, u, eff);
 			font->Points  = points;
+			/* The ROM VDI's algorithmic bold widens every character and its
+			 * italic skews sideways, but neither shows up in vqt_extent() -
+			 * remember the widths so text measuring can put them back.
+			 */
+			if (!has_fsm_gdos) {
+				font->EffWidth = eff[0];
+				font->EffSkew  = eff[1] + eff[2];
+			} else {
+				font->EffWidth = 0;
+				font->EffSkew  = 0;
+			}
 			if (base->Mapping == MAP_ATARI) {
 				font->Ascend  = dist[4];
 				font->Descend = dist[0];

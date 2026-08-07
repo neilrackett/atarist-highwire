@@ -212,6 +212,8 @@ word_store (TEXTBUFF current)
 		
 			hw_vqt_f_extent16n (vdi_handle, word->item, (WORD)length, pts);
 			pts[2] -= pts[0];
+			/* what the VDI's algorithmic bold/italic will add when drawing */
+			pts[2] += word->font->EffWidth * (WORD)length + word->font->EffSkew;
 		}
 		if (word->image) {
 			word->image->alt_w = pts[2];
