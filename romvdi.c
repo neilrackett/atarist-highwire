@@ -170,12 +170,12 @@ hw_vqt_advance (WORD handle, WORD ch,
 		vqt_advance (handle, ch, advx, advy, remx, remy);
 		return;
 	}
-	/* The ROM VDI has no sub-pixel advance; character cells are fixed, so the
-	 * character width is the advance and there is no remainder.
+	/* The ROM VDI has no sub-pixel advance; the character cell width is the
+	 * advance and there is no remainder.  Note vqt_width() returns a status
+	 * (the character, or -1) - the width arrives in its first output.
 	 */
-	*advx = vqt_width (handle, narrow_char (ch), remx, remy, advy);
-	if (*advx < 0) {
-		*advx = 0;
+	if (vqt_width (handle, narrow_char (ch), advx, remx, remy) < 0) {
+		*advx = 0; /* character not in the font */
 	}
 	*advy = *remx = *remy = 0;
 }
