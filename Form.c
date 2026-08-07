@@ -1008,8 +1008,9 @@ input_disable (INPUT input, BOOL onNoff)
 			field->disabled = onNoff;
 		}
 	} else if (input->Type == IT_TEXT) {
-		INPUT buttn = (input->Next->Type == IT_BUTTN ? input->Next : NULL);
-		if (buttn->SubType == 'F' && buttn->u.FileEd == input) {
+		INPUT buttn = input->Next;
+		if (buttn && buttn->Type == IT_BUTTN
+		          && buttn->SubType == 'F' && buttn->u.FileEd == input) {
 			buttn->disabled = onNoff;
 		}
 	}
