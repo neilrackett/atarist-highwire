@@ -194,9 +194,18 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 			if (base->Mapping == MAP_ATARI) {
 				font->Ascend  = dist[4];
 				font->Descend = dist[0];
+				/* Bitmap cells carry no leading of their own, so consecutive
+				 * lines would touch; line stacking adds this to breathe.
+				 */
+				if (cfg_LineSpacing < 0) { /* auto: 1/8 of the cell plus one */
+					font->Leading = (font->Ascend + font->Descend + 4) /8 + 1;
+				} else {
+					font->Leading = cfg_LineSpacing;
+				}
 			} else {
 				font->Ascend  = dist[3];
 				font->Descend = dist[1];
+				font->Leading = 0;
 			}
 		}
 		if (!condns) {

@@ -29,6 +29,7 @@ BOOL         cfg_ViewImages   = TRUE;
 BOOL         cfg_FixedCmap    = FALSE;
 BOOL         cfg_GreyPalette  = TRUE;
 BOOL         cfg_ImgAspect    = TRUE;
+WORD         cfg_LineSpacing  = -1;
 BOOL         cfg_UseCSS       = TRUE;
 BOOL         cfg_HotlistOpen  = FALSE;
 BOOL         cfg_AVWindow     = FALSE;
@@ -447,6 +448,17 @@ cfg_localweb (char * param, long arg)
 
 /*----------------------------------------------------------------------------*/
 static void
+cfg_linespc (char * param, long arg)
+{
+	long n = atol (param);
+	(void)arg;
+	if (n >= -1 && n <= 16) {
+		cfg_LineSpacing = (WORD)n;
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+static void
 cfg_cachedir (char * param, long arg)
 {
 	(void)arg;
@@ -685,6 +697,7 @@ read_config(void)
 				{ "ITALIC_HEADER",        cfg_font,      FA(header_font, 0, 1)  },
 				{ "ITALIC_NORMAL",        cfg_font,      FA(normal_font, 0, 1)  },
 				{ "ITALIC_TELETYPE",      cfg_font,      FA(pre_font,    0, 1)  },
+				{ "LINE_SPACING",         cfg_linespc,   0 },
 				{ "LOCAL_WEB",            cfg_localweb,  0 },
 				{ "LOGGING",              cfg_Func,      (long)menu_logging     },
 				{ "NORMAL",               cfg_font,      FA(normal_font, 0, 0)  },

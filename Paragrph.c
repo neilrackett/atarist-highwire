@@ -382,7 +382,7 @@ vTab_format (DOMBOX * This, long width, BLOCKER blocker)
 		line->Paragraph = par;
 		line->Word      = word;
 		line->Ascend    = word->word_height;
-		line->Descend   = word->word_tail_drop;
+		line->Descend   = word->word_tail_drop + word->font->Leading;
 		line->Width     = width - blocker->R.width;
 		offset = int_width - word->word_width + word->space_width - hanging;
 		
@@ -421,8 +421,8 @@ vTab_format (DOMBOX * This, long width, BLOCKER blocker)
 			}
 			if (line->Ascend  < word->word_height)
 				 line->Ascend  = word->word_height;
-			if (line->Descend < word->word_tail_drop)
-				 line->Descend = word->word_tail_drop;
+			if (line->Descend < word->word_tail_drop + word->font->Leading)
+				 line->Descend = word->word_tail_drop + word->font->Leading;
 			offset -= word->word_width;
 			ln_brk  = word->line_brk;
 			count++;
