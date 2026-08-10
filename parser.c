@@ -81,6 +81,9 @@ new_parser (LOADER loader)
 	parser->ResumePtr = loader->Data;
 	parser->ResumeFnc = NULL;
 	parser->ResumeErr = E_OK;
+	hw_LowMemory      = FALSE; /* per document, not per parse_html() entry: a
+	                            * resume for an external stylesheet re-enters
+	                            * the parse loop and must not clear it */
 	memset (prsdata->Stack, 0, sizeof(prsdata->Stack));
 	prsdata->Styles = NULL;
 	prsdata->KeyNum = 0;

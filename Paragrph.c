@@ -216,7 +216,7 @@ add_paragraph (TEXTBUFF current, short vspace)
 		hw_lowmemory();     /* carry on in the paragraph we already have */
 		paragraph = current->paragraph;
 
-	} else if (paragraph != current->paragraph) {
+	} else if (paragraph != current->paragraph) {   /* i.e. freshly allocated */
 		PARAGRPH copy_from = current->paragraph;
 
 		copy_from->next_paragraph = paragraph;

@@ -477,13 +477,11 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 		char       * p    = strchr (strcpy (buffer, meth), '\0');
 		size_t       len;
 		if (proxy) {
-			const char * text = (loc->Proto == PROT_HTTPS ? "https://"
-			                                              : "http://");
-			size_t       tlen = strlen (text);
-			UWORD        hlen;
+			UWORD hlen;
 			name = location_Host (loc, &hlen);
-			memcpy (p, text, tlen);
-			p   += tlen;
+			p    = strchr (strcpy (p, (loc->Proto == PROT_HTTPS ? "https://"
+			                                                    : "http://")),
+			               '\0');
 			strcpy (p, name);
 			p   += hlen;
 		}
@@ -499,9 +497,11 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 			 * to negotiate with when the only reader is a proxy that already
 			 * knows.  Read per request, so changing resolution is picked up
 			 * without a restart. */
-			const char * ua_col = (planes == 1                       ? "mono"
-			                     : (cfg_GreyPalette && planes == 2)  ? "gray"
-			                                                        : "color");
+			/* color_GreyRamp, not cfg_GreyPalette: the former is what the
+			 * screen really has, the latter only what was asked for */
+			const char * ua_col = (planes == 1     ? "mono"
+			                     : color_GreyRamp  ? "gray"
+			                                       : "color");
 			/* The shape of one pixel, so a proxy can hand us images already
 			 * corrected for a screen that is not square.  It reports what we
 			 * will really do, so 1:1 when we would leave the image alone --

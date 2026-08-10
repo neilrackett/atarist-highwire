@@ -1263,14 +1263,14 @@ hw_lowmemory (void)
 }
 
 /*----------------------------------------------------------------------------*/
+/* The class is not set: the scratch is never linked into the tree and never
+ * becomes anyone's parentbox, so nothing can ever read it back. */
 static DOMBOX *
-lowmem_box (BOXCLASS bc)
+lowmem_box (void)
 {
 	hw_lowmemory();
-	dombox_ctor (&lowmem_scratch, NULL, 0);
-	lowmem_scratch.BoxClass = bc;
 
-	return &lowmem_scratch;
+	return dombox_ctor (&lowmem_scratch, NULL, 0);
 }
 
 
@@ -1283,7 +1283,7 @@ create_box (TEXTBUFF current, BOXCLASS bc, WORD par_top)
 	PARAGRPH par;
 
 	if (!box) {
-		return lowmem_box (bc);
+		return lowmem_box();
 	}
 	par = add_paragraph (current, par_top);
 
@@ -4471,9 +4471,8 @@ parse_html (void * arg, long invalidated)
 		parser_resumed (parser);
 	}
 	font_switch (current->word->font, NULL);
-	flags        = PF_SPACE; /* skip leading spaces */
-	linetoolong  = FALSE;    /* "line too long" error printed? */
-	hw_LowMemory = FALSE;    /* let this document have its own go at the memory */
+	flags       = PF_SPACE; /* skip leading spaces */
+	linetoolong = FALSE;    /* "line too long" error printed? */
 	encoder     = encoder_word (frame->Encoding,
 	                            current->word->font->Base->Mapping);
 	while (*symbol != '\0')
@@ -4751,7 +4750,7 @@ render_hrule (TEXTBUFF current, H_ALIGN align, short w, short size, BOOL shade)
 	DOMBOX * box = dombox_ctor (malloc (sizeof (DOMBOX)),
 	                            current->parentbox, BC_SINGLE);
 	if (!box) {
-		return lowmem_box (BC_SINGLE);
+		return lowmem_box();
 	}
 	box->HtmlCode = TAG_HR;
 	box->HasBorder = TRUE;

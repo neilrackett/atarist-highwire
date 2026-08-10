@@ -46,9 +46,14 @@ static short  start_application (const char * appl, LOCATION loc);
 /* There is no TLS in the browser, so https is spoken only to a proxy that
  * terminates it for us: 'GET https://host/path' on the request line, no CONNECT
  * tunnel.  Without a proxy a https location has nowhere to go -- dialling it as
- * cleartext http would just hang against port 443. */
-#define PROTO_isFetchable(p) ((p) == PROT_HTTP \
-                              || ((p) == PROT_HTTPS && http_hasProxy()))
+ * cleartext http would just hang against port 443.
+ * A function rather than one of Location.h's PROTO_ macros: those are pure
+ * tests on the enum, this one asks another module what it is configured with. */
+static BOOL
+proto_isFetchable (LC_PROTO proto)
+{
+	return (proto == PROT_HTTP || (proto == PROT_HTTPS && http_hasProxy()));
+}
 
 
 /*______________return_values_of_scheduled_jobs,_controlling_their_priority___*/
@@ -81,6 +86,39 @@ static int generic_job (void * arg, long invalidated);
 
 
 /*----------------------------------------------------------------------------*/
+/* Build one of the little internal error documents and schedule it. */
+static void
+error_page (LOADER loader, CONTAINR target,
+            const char * head, const char * body)
+{
+	const char fmt[] = "<html><head><title>Error</title></head><body>"
+	                   "<h1>%s</h1>%s%s%s</body></html>";
+	char buf [sizeof(fmt) + 512];  /* callers pass literals; 512 covers them */
+
+	sprintf (buf, fmt, head, (body ? "<p>" : ""), (body ? body : ""),
+	                        (body ? "</p>" : ""));
+	loader->Error    = -EPROTONOSUPPORT;
+	loader->Data     = strdup (buf);
+	loader->MimeType = MIME_TXT_HTML;
+	sched_insert (parse_html, new_parser (loader), (long)target, PRIO_INTERN);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Next occurrence of tag, case blind.  The single character test rejects
+ * almost every '<' in a document before the call to strnicmp. */
+static char *
+find_tag (char * p, char * end, const char * tag, size_t tlen, char next)
+{
+	while ((p = memchr (p, '<', end - p)) != NULL) {
+		if ((p[1] | 0x20) == next && strnicmp (p, tag, tlen) == 0) {
+			return p;
+		}
+		p++;
+	}
+	return NULL;
+}
+
 /* Drop <script> bodies out of the buffer, in place, before the cap below is
  * measured.  render_SCRIPT_tag() already steps over them without building
  * anything, so this buys no parse time -- but on a modern page the scripts are
@@ -97,14 +135,12 @@ strip_scripts (char * data, size_t len)
 	char * end = data + len;
 
 	while (rd < end) {
-		char * lt   = rd;
+		char * lt = rd;
 		char * body;
 
-		while ((lt = memchr (lt, '<', end - lt)) != NULL) {
-			if (strnicmp (lt, "<script", 7) == 0
-			    && (lt[7] == '>' || lt[7] == '/' || isspace (lt[7]))) {
-				break;
-			}
+		/* an element whose name merely starts with 'script' is not one */
+		while ((lt = find_tag (lt, end, "<script", 7, 's')) != NULL
+		       && !(lt[7] == '>' || lt[7] == '/' || isspace (lt[7]))) {
 			lt++;
 		}
 		if (!lt) {
@@ -113,12 +149,7 @@ strip_scripts (char * data, size_t len)
 		if (wr != rd) memmove (wr, rd, lt - rd);
 		wr += lt - rd;
 
-		body = lt +7;
-		while ((body = memchr (body, '<', end - body)) != NULL) {
-			if (strnicmp (body, "</script", 8) == 0) break;
-			body++;
-		}
-		if (!body) {
+		if ((body = find_tag (lt +7, end, "</script", 8, '/')) == NULL) {
 			rd = end;           /* unterminated, as the parser would treat it */
 			break;
 		}
@@ -127,10 +158,8 @@ strip_scripts (char * data, size_t len)
 		if (body < end) body++;
 		rd = body;
 	}
-	if (rd < end) {
-		if (wr != rd) memmove (wr, rd, end - rd);
-		wr += end - rd;
-	}
+	if (wr != rd) memmove (wr, rd, end - rd);
+	wr += end - rd;
 	*wr = '\0';
 
 	return (size_t)(wr - data);
@@ -152,10 +181,9 @@ cap_document (LOADER loader)
 		"MAX_DOCUMENT.</p>\n";
 	static const char text_note[] = "\n\n[Document truncated: MAX_DOCUMENT]\n";
 
-	const char * note = (loader->MimeType == MIME_TXT_HTML ? html_note
-	                                                       : text_note);
-	size_t nlen = (loader->MimeType == MIME_TXT_HTML ? sizeof(html_note)
-	                                                 : sizeof(text_note));
+	BOOL   is_html = (loader->MimeType == MIME_TXT_HTML);
+	const char * note = (is_html ? html_note        : text_note);
+	size_t       nlen = (is_html ? sizeof(html_note): sizeof(text_note));
 	char * data = loader->Data;
 	size_t keep;
 
@@ -164,12 +192,15 @@ cap_document (LOADER loader)
 		return;
 	}
 	/* reserve room for the notice inside the cap, then back up to the end of
-	 * the last complete tag so the parser never sees a half written '<' */
+	 * the last complete tag so the parser never sees a half written '<'.
+	 * Bounded: no useful boundary lies further back than this, and without a
+	 * limit a document with no tags at all is walked to its start for nothing */
 	keep = (size_t)cfg_MaxDocument - nlen;
-	if (loader->MimeType == MIME_TXT_HTML) {
+	if (is_html) {
 		size_t tag = keep;
-		while (tag > 0 && data[tag -1] != '>') tag--;
-		if (tag > 0) keep = tag;   /* else no tag boundary: cut where we are */
+		size_t min = (keep > 4096 ? keep - 4096 : 0);
+		while (tag > min && data[tag -1] != '>') tag--;
+		if (tag > min) keep = tag; /* else no tag boundary: cut where we are */
 	}
 	memcpy (data + keep, note, nlen);   /* nlen covers the terminating nul */
 	loader->DataSize = loader->DataFill = keep + nlen -1;
@@ -190,15 +221,29 @@ start_parser (LOADER loader)
 	if (!loader->MimeType) {
 		loader->MimeType = MIME_TEXT;
 	}
-	if (MIME_Major (loader->MimeType) == MIME_TEXT) {
+	if (MIME_Major (loader->MimeType) == MIME_TEXT && loader->DataFill > 0) {
 		/* DataFill is 0 for the small pages generated in this file, whose
 		 * bytes live only behind Data -- leave those alone */
-		if (loader->MimeType == MIME_TXT_HTML && loader->Data
-		    && loader->DataFill > 0) {
+		size_t was = loader->DataFill;
+
+		if (loader->MimeType == MIME_TXT_HTML && loader->Data) {
 			loader->DataSize = loader->DataFill =
 				strip_scripts (loader->Data, loader->DataFill);
 		}
 		cap_document (loader);
+
+		/* Hand the shortfall back before the DOM starts competing for it:
+		 * the scripts of a modern page are most of its bytes, and holding a
+		 * megabyte of discarded markup through the parse is the opposite of
+		 * what both of the above are for.  Must precede new_parser(), which
+		 * latches Data.  Keeping the original on failure is always safe. */
+		if (loader->DataFill < was) {
+			char * p = realloc (loader->Data, loader->DataFill +3);
+			if (p) loader->Data = p;
+			/* the loaders terminate with three nuls, not one; keep that */
+			p = loader->Data + loader->DataFill;
+			p[0] = p[1] = p[2] = '\0';
+		}
 	}
 	parser = new_parser (loader);
 	
@@ -446,15 +491,10 @@ start_cont_load (CONTAINR target, const char * url, LOCATION base,
 	} else if (loc->Proto == PROT_HTTPS && !http_hasProxy()) {
 		/* tested ahead of the MIME check, so that https://host/pic.jpg says why
 		 * it failed instead of disappearing into parse_image */
-		const char txt[] = "<html><head><title>Error</title></head><body>"
-		                   "<h1>https:// needs a proxy</h1><p>HighWire has no "
-		                   "TLS of its own.  Set HTTP_PROXY in the config file "
-		                   "to a proxy that terminates it.</p></body></html>";
-		loader->Error    = -EPROTONOSUPPORT;
-		loader->Data     = strdup (txt);
-		loader->MimeType = MIME_TXT_HTML;
-		sched_insert (parse_html, new_parser (loader), (long)target, PRIO_INTERN);
-		
+		error_page (loader, target, "https:// needs a proxy",
+		            "HighWire has no TLS of its own.  Set HTTP_PROXY in the "
+		            "config file to a proxy that terminates it.");
+
 	} else if (MIME_Major(loader->MimeType) == MIME_IMAGE) {
 		loader->MimeType = MIME_IMAGE;
 		sched_insert (parse_image, new_parser (loader),(long)target, PRIO_INTERN);
@@ -466,7 +506,7 @@ start_cont_load (CONTAINR target, const char * url, LOCATION base,
 		sched_insert (parse_mbox, new_parser (loader), (long)target, PRIO_INTERN);
 	
 # endif
-	} else if (PROTO_isFetchable (loc->Proto)) {
+	} else if (proto_isFetchable (loc->Proto)) {
 		if (loader->ExtAppl) {
 			loader->SuccJob = generic_job;
 			containr_notify (loader->Target, HW_PageFinished, NULL);
@@ -477,15 +517,10 @@ start_cont_load (CONTAINR target, const char * url, LOCATION base,
 #endif /* USE_INET */
 	
 	} else if (loc->Proto) {
-		const char txt[] = "<html><head><title>Error</title></head><body>"
-		                   "<h1>Protocol #%i not supported!</h1></body></html>";
-		char buf [sizeof(txt) +10];
-		sprintf (buf, txt, loc->Proto);
-		loader->Error    = -EPROTONOSUPPORT;
-		loader->Data     = strdup (buf);
-		loader->MimeType = MIME_TXT_HTML;
-		sched_insert (parse_html, new_parser (loader), (long)target, PRIO_INTERN);
-	
+		char head [40];
+		sprintf (head, "Protocol #%i not supported!", loc->Proto);
+		error_page (loader, target, head, NULL);
+
 	} else if (loader->ExtAppl) {
 		start_application (loader->ExtAppl, loc);
 		delete_loader (&loader);
@@ -526,7 +561,7 @@ start_objc_load (CONTAINR target, const char * url, LOCATION base,
 		sched_insert (loader->SuccJob, loader, (long)target, PRIO_SUCCESS);
 	
 #ifdef USE_INET
-	} else if (PROTO_isFetchable (loc->Proto)) {
+	} else if (proto_isFetchable (loc->Proto)) {
 		sched_insert (header_job, loader, (long)target,
 		              (hdr_only ? PRIO_USERACT : PRIO_TRIVIAL));
 #endif

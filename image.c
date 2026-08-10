@@ -124,17 +124,12 @@ image_AspectRatio (WORD * wpx, WORD * hpx)
 static void
 aspect_adjust (IMAGE img)
 {
-	WORD  axis;
-	ULONG ffx;
-
 	aspect_setup();
-	axis = aspect_axis;
-	ffx  = aspect_ffx;
 
-	if (axis == 'h') {
-		img->disp_h = squash (img->disp_h, ffx);
-	} else if (axis == 'w') {
-		img->disp_w = squash (img->disp_w, ffx);
+	if (aspect_axis == 'h') {
+		img->disp_h = squash (img->disp_h, aspect_ffx);
+	} else if (aspect_axis == 'w') {
+		img->disp_w = squash (img->disp_w, aspect_ffx);
 	}
 }
 
