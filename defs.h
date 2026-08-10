@@ -566,6 +566,7 @@ struct frame_item {
 	char   * base_target;
 	GRECT    clip;
 	ANCHOR   first_named_location;
+	UWORD    ImgCount;        /* inline images placed, against cfg_MaxImages */
 	IMAGEMAP MapList;
 	FORM     FormList;        /* FORM list for user interaction */
 };

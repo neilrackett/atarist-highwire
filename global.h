@@ -173,6 +173,8 @@ extern BOOL         cfg_UseCSS;
 extern BOOL         cfg_HotlistOpen;
 extern BOOL         cfg_AVWindow;    /* AVSERVER window enables AV-drag&drop */
 extern BOOL         cfg_GlobalCycle; /* global window cycling by AV_SENDKEY  */
+extern ULONG        cfg_MaxDocument; /* bytes of markup to parse, 0 = no cap */
+extern UWORD        cfg_MaxImages;   /* inline images per page, 0 = no cap   */
 extern WORD         cfg_ConnTout;    /* seconds for connection establishing  */
 extern WORD         cfg_ConnRetry;   /* number of tries for connection that  *
                                       * couldn't get established immediately */

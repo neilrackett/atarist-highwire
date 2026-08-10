@@ -2900,13 +2900,18 @@ render_IMG_tag (PARSER parser, const char ** text, UWORD flags)
 		char output[100];
 		char img_file[HW_PATH_MAX];
 	
-		if (cfg_DropImages) {
+		/* Past MAX_IMAGES fall back to the ALT text.  Each further image costs
+		 * a fetch, a decode and a dither, so a page carrying hundreds of them
+		 * is otherwise unreachable long before the last one arrives. */
+		if (cfg_DropImages
+		    || (cfg_MaxImages && frame->ImgCount >= cfg_MaxImages)) {
 			if (get_value (parser, KEY_ALT, output, sizeof(output))) {
 				scan_string_to_16bit (output, frame->Encoding, &current->text,
 				                      current->word->font->Base->Mapping);
 			}
 			return flags;
 		}
+		frame->ImgCount++;
 
 		if (floating != ALN_NO_FLT) {
 			H_ALIGN  align = current->paragraph->Box.TextAlign;

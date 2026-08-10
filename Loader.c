@@ -81,15 +81,124 @@ static int generic_job (void * arg, long invalidated);
 
 
 /*----------------------------------------------------------------------------*/
+/* Drop <script> bodies out of the buffer, in place, before the cap below is
+ * measured.  render_SCRIPT_tag() already steps over them without building
+ * anything, so this buys no parse time -- but on a modern page the scripts are
+ * most of the bytes, and counting them against MAX_DOCUMENT would truncate the
+ * real content long before it needed to be.
+ * A script body ends at the first '</script' whether or not it is inside a
+ * quoted string, so a plain search is the correct rule here.
+*/
+static size_t
+strip_scripts (char * data, size_t len)
+{
+	char * rd  = data;
+	char * wr  = data;
+	char * end = data + len;
+
+	while (rd < end) {
+		char * lt   = rd;
+		char * body;
+
+		while ((lt = memchr (lt, '<', end - lt)) != NULL) {
+			if (strnicmp (lt, "<script", 7) == 0
+			    && (lt[7] == '>' || lt[7] == '/' || isspace (lt[7]))) {
+				break;
+			}
+			lt++;
+		}
+		if (!lt) {
+			break;              /* no more scripts: the tail is copied below */
+		}
+		if (wr != rd) memmove (wr, rd, lt - rd);
+		wr += lt - rd;
+
+		body = lt +7;
+		while ((body = memchr (body, '<', end - body)) != NULL) {
+			if (strnicmp (body, "</script", 8) == 0) break;
+			body++;
+		}
+		if (!body) {
+			rd = end;           /* unterminated, as the parser would treat it */
+			break;
+		}
+		body += 8;
+		while (body < end && *body != '>') body++;
+		if (body < end) body++;
+		rd = body;
+	}
+	if (rd < end) {
+		if (wr != rd) memmove (wr, rd, end - rd);
+		wr += end - rd;
+	}
+	*wr = '\0';
+
+	return (size_t)(wr - data);
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* Hand the parser at most MAX_DOCUMENT bytes.  A 4 MB machine cannot hold the
+ * DOM of a modern front page, and running out of memory half way through the
+ * parse loses the whole session; stopping at a tag boundary loses only the
+ * bottom of the page.  The cached copy stays whole, so raising the cap and
+ * reloading shows more without going back to the network.
+*/
+static void
+cap_document (LOADER loader)
+{
+	static const char html_note[] =
+		"\n<hr><p><b>Document truncated</b> because it is larger than "
+		"MAX_DOCUMENT.</p>\n";
+	static const char text_note[] = "\n\n[Document truncated: MAX_DOCUMENT]\n";
+
+	const char * note = (loader->MimeType == MIME_TXT_HTML ? html_note
+	                                                       : text_note);
+	size_t nlen = (loader->MimeType == MIME_TXT_HTML ? sizeof(html_note)
+	                                                 : sizeof(text_note));
+	char * data = loader->Data;
+	size_t keep;
+
+	if (!cfg_MaxDocument || !data || cfg_MaxDocument <= nlen
+	    || (ULONG)loader->DataSize <= cfg_MaxDocument) {
+		return;
+	}
+	/* reserve room for the notice inside the cap, then back up to the end of
+	 * the last complete tag so the parser never sees a half written '<' */
+	keep = (size_t)cfg_MaxDocument - nlen;
+	if (loader->MimeType == MIME_TXT_HTML) {
+		size_t tag = keep;
+		while (tag > 0 && data[tag -1] != '>') tag--;
+		if (tag > 0) keep = tag;   /* else no tag boundary: cut where we are */
+	}
+	memcpy (data + keep, note, nlen);   /* nlen covers the terminating nul */
+	loader->DataSize = loader->DataFill = keep + nlen -1;
+
+	errprintf ("cap_document(): '%s' cut to %lu bytes.\n",
+	           loader->Location->File, (unsigned long)loader->DataSize);
+}
+
+
+/*----------------------------------------------------------------------------*/
 static BOOL
 start_parser (LOADER loader)
 {
 	SCHED_FUNC func = parse_plain;
 	BOOL       chk0 = FALSE;
 	PARSER     parser;
-	
+
 	if (!loader->MimeType) {
 		loader->MimeType = MIME_TEXT;
+	}
+	if (MIME_Major (loader->MimeType) == MIME_TEXT) {
+		/* DataFill is 0 for the small pages generated in this file, whose
+		 * bytes live only behind Data -- leave those alone */
+		if (loader->MimeType == MIME_TXT_HTML && loader->Data
+		    && loader->DataFill > 0) {
+			loader->DataSize = loader->DataFill =
+				strip_scripts (loader->Data, loader->DataFill);
+		}
+		cap_document (loader);
 	}
 	parser = new_parser (loader);
 	

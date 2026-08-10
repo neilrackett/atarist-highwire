@@ -36,6 +36,8 @@ BOOL         cfg_AVWindow     = FALSE;
 BOOL         cfg_GlobalCycle  = FALSE;
 WORD         cfg_ConnTout     = 1;
 WORD         cfg_ConnRetry    = 3;
+ULONG        cfg_MaxDocument  = 512uL * 1024uL;
+UWORD        cfg_MaxImages    = 0;
 
 static const char * cfg_magic = _HIGHWIRE_VERSION_ " [" __DATE__ "]";
 
@@ -530,6 +532,26 @@ cfg_http_proxy (char * param, long arg)
 
 /*----------------------------------------------------------------------------*/
 static void
+cfg_max_doc (char * param, long arg)
+{
+	long n = atol (param);
+	(void)arg;
+	if (n >= 0) cfg_MaxDocument = (ULONG)n * 1024uL;  /* 0 disables the cap */
+}
+
+
+/*----------------------------------------------------------------------------*/
+static void
+cfg_max_img (char * param, long arg)
+{
+	long n = atol (param);
+	(void)arg;
+	if (n >= 0 && n <= 0xFFFF) cfg_MaxImages = (UWORD)n;  /* 0 disables it */
+}
+
+
+/*----------------------------------------------------------------------------*/
+static void
 cfg_urlhist (char * param, long arg)
 {
 	(void)arg;
@@ -690,6 +712,8 @@ read_config(void)
 				{ "LINE_SPACING",         cfg_linespc,   0 },
 				{ "LOCAL_WEB",            cfg_localweb,  0 },
 				{ "LOGGING",              cfg_Func,      (long)menu_logging     },
+				{ "MAX_DOCUMENT",         cfg_max_doc,   0 },
+				{ "MAX_IMAGES",           cfg_max_img,   0 },
 				{ "NORMAL",               cfg_font,      FA(normal_font, 0, 0)  },
 				{ "NO_IMAGE",             cfg_BOOL,      (long)&cfg_DropImages  },
 				{ "RESTRICT_HOST",        cfg_restrict,  0 },
