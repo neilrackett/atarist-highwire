@@ -492,11 +492,33 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 		strcpy (p += len, rest);
 		if ((len = inet_send (sock, buffer, (p - buffer) + sizeof(rest)-1)) > 0) {
 			const char * stack = inet_info();
+			/* Screen geometry, so a transcoding proxy can size images for the
+			 * display instead of guessing.  UA-pixels/UA-color are the old
+			 * MSIE headers rather than modern client hints: those are only
+			 * sent after a server advertises Accept-CH, and there is nothing
+			 * to negotiate with when the only reader is a proxy that already
+			 * knows.  Read per request, so changing resolution is picked up
+			 * without a restart. */
+			const char * ua_col = (planes == 1                       ? "mono"
+			                     : (cfg_GreyPalette && planes == 2)  ? "gray"
+			                                                        : "color");
 			len = sprintf (buffer,
 			      "HOST: %s\r\n"
 			      "User-Agent: Mozilla 4.0 (compatible; Atari "
-			      _HIGHWIRE_FULLNAME_ "/" _HIGHWIRE_VERSION_ " %s)\r\n",
-			      name, (stack ? stack : ""));
+			      _HIGHWIRE_FULLNAME_ "/" _HIGHWIRE_VERSION_ " %s)\r\n"
+			      /* the q value matters: unweighted, the catch-all lets a
+			       * negotiating CDN answer with webp or avif, which we cannot
+			       * decode */
+			      "Accept: text/html,text/plain,image/gif,image/jpeg,image/png,"
+			              "*/*;q=0.5\r\n"
+			      /* the socket is handed on to read the body and then closed;
+			       * nothing here ever sends a second request down it, so say so
+			       * rather than leave an HTTP/1.1 peer holding it open */
+			      "Connection: close\r\n"
+			      "UA-pixels: %ix%i\r\n"
+			      "UA-color: %s%i\r\n",
+			      name, (stack ? stack : ""),
+			      vdi_dev.xres +1, vdi_dev.yres +1, ua_col, planes);
 			len = inet_send (sock, buffer, len);
 		}
 		if ((long)len > 0 && referer) {
