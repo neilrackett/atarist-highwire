@@ -43,6 +43,13 @@ char help_file[HW_PATH_MAX];
 
 static short  start_application (const char * appl, LOCATION loc);
 
+/* There is no TLS in the browser, so https is spoken only to a proxy that
+ * terminates it for us: 'GET https://host/path' on the request line, no CONNECT
+ * tunnel.  Without a proxy a https location has nowhere to go -- dialling it as
+ * cleartext http would just hang against port 443. */
+#define PROTO_isFetchable(p) ((p) == PROT_HTTP \
+                              || ((p) == PROT_HTTPS && http_hasProxy()))
+
 
 /*______________return_values_of_scheduled_jobs,_controlling_their_priority___*/
 #define JOB_KEEP 1  /* restart again later and doesn't change priority   */
@@ -209,7 +216,7 @@ new_loader (LOCATION loc, CONTAINR target, BOOL lookup)
 		loader->MimeType = mime_byExtension (loc->File, &appl, loader->FileExt);
 	}
 	
-	if (loc->Proto == PROT_HTTP && lookup) {
+	if (PROTO_isHttp (loc->Proto) && lookup) {
 		CACHED cached = cache_lookup (loc, 0, NULL);
 		if (cached) {
 			union { CACHED c; LOCATION l; } u;
@@ -327,6 +334,18 @@ start_cont_load (CONTAINR target, const char * url, LOCATION base,
 		loader->MimeType = MIME_TXT_HTML;
 		sched_insert (parse_about, new_parser (loader),(long)target, PRIO_INTERN);
 		
+	} else if (loc->Proto == PROT_HTTPS && !http_hasProxy()) {
+		/* tested ahead of the MIME check, so that https://host/pic.jpg says why
+		 * it failed instead of disappearing into parse_image */
+		const char txt[] = "<html><head><title>Error</title></head><body>"
+		                   "<h1>https:// needs a proxy</h1><p>HighWire has no "
+		                   "TLS of its own.  Set HTTP_PROXY in the config file "
+		                   "to a proxy that terminates it.</p></body></html>";
+		loader->Error    = -EPROTONOSUPPORT;
+		loader->Data     = strdup (txt);
+		loader->MimeType = MIME_TXT_HTML;
+		sched_insert (parse_html, new_parser (loader), (long)target, PRIO_INTERN);
+		
 	} else if (MIME_Major(loader->MimeType) == MIME_IMAGE) {
 		loader->MimeType = MIME_IMAGE;
 		sched_insert (parse_image, new_parser (loader),(long)target, PRIO_INTERN);
@@ -338,7 +357,7 @@ start_cont_load (CONTAINR target, const char * url, LOCATION base,
 		sched_insert (parse_mbox, new_parser (loader), (long)target, PRIO_INTERN);
 	
 # endif
-	} else if (loc->Proto == PROT_HTTP) {
+	} else if (PROTO_isFetchable (loc->Proto)) {
 		if (loader->ExtAppl) {
 			loader->SuccJob = generic_job;
 			containr_notify (loader->Target, HW_PageFinished, NULL);
@@ -398,7 +417,7 @@ start_objc_load (CONTAINR target, const char * url, LOCATION base,
 		sched_insert (loader->SuccJob, loader, (long)target, PRIO_SUCCESS);
 	
 #ifdef USE_INET
-	} else if (loc->Proto == PROT_HTTP) {
+	} else if (PROTO_isFetchable (loc->Proto)) {
 		sched_insert (header_job, loader, (long)target,
 		              (hdr_only ? PRIO_USERACT : PRIO_TRIVIAL));
 #endif

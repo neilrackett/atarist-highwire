@@ -34,6 +34,13 @@ hhtp_proxy (const char * host, short port)
 	proxy = new_location (buf, NULL);
 }
 
+/*============================================================================*/
+BOOL
+http_hasProxy (void)
+{
+	return (proxy != NULL);
+}
+
 
 /*============================================================================*/
 long
@@ -470,11 +477,13 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 		char       * p    = strchr (strcpy (buffer, meth), '\0');
 		size_t       len;
 		if (proxy) {
-			const char text[] = "http://";
-			UWORD      hlen;
+			const char * text = (loc->Proto == PROT_HTTPS ? "https://"
+			                                              : "http://");
+			size_t       tlen = strlen (text);
+			UWORD        hlen;
 			name = location_Host (loc, &hlen);
-			strcpy (p, text);
-			p   += sizeof(text) -1;
+			memcpy (p, text, tlen);
+			p   += tlen;
 			strcpy (p, name);
 			p   += hlen;
 		}

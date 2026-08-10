@@ -18,6 +18,7 @@ typedef enum {
 #define PROTO_isLocal(p)  ((p) >= PROT_FILE  && (p) <= PROT_DIR)
 #define PROTO_isPseudo(p) ((p) >= PROT_ABOUT && (p) <= PROT_MAILTO)
 #define PROTO_isRemote(p) ((p) >= PROT_HTTP)
+#define PROTO_isHttp(p)   ((p) == PROT_HTTP || (p) == PROT_HTTPS)
 
 struct s_location {
 	ULONG    __hash;

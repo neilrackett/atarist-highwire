@@ -21,6 +21,7 @@ typedef struct {
 } HTTP_HDR;
 
 void hhtp_proxy (const char * host, short port);
+BOOL http_hasProxy (void);
 
 short http_header (LOCATION, HTTP_HDR *, size_t blk_size,
                    short * keep_alive, long tout_msec,

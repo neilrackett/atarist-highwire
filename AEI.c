@@ -1136,7 +1136,7 @@ rpoplink_open (WORD mx, WORD my, CONTAINR current, void * hash)
 	FRAME  frame = hwWind_ActiveFrame (wind);
 	LOCATION loc = new_location (addr, frame->BaseHref);
 	
-	if (loc->Proto != PROT_FILE && loc->Proto != PROT_HTTP) {
+	if (loc->Proto != PROT_FILE && !PROTO_isHttp (loc->Proto)) {
 		objc_change (rpoplink, RLINK_SAVE, 0, 0,0,0,0, OS_DISABLED, 0);
 	} else {
 		objc_change (rpoplink, RLINK_SAVE, 0, 0,0,0,0, OS_NORMAL, 0);
@@ -1285,7 +1285,7 @@ rpopilink_open (WORD mx, WORD my, CONTAINR current, void * hash)
 	WORDITEM word   = (link->start ? link->start : find_word (frame, mx, my));
 	LOCATION imgloc = word->image->source;
 	
-	if (loc->Proto != PROT_FILE && loc->Proto != PROT_HTTP) {
+	if (loc->Proto != PROT_FILE && !PROTO_isHttp (loc->Proto)) {
 		objc_change (rpopimg, RIMG_SAVE, 0, 0,0,0,0, OS_DISABLED, 0);
 	} else {
 		objc_change (rpopimg, RIMG_SAVE, 0, 0,0,0,0, OS_NORMAL, 0);
