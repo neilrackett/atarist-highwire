@@ -3,7 +3,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h> /* memcpy() */
+#include <time.h>
 #include <gemx.h>
+
+#ifndef CLK_TCK
+#   define CLK_TCK     CLOCKS_PER_SEC
+#endif
 
 #ifdef __PUREC__
 # define CONTAINR struct s_containr *
@@ -437,10 +442,17 @@ image_job (void * arg, long invalidated)
 	short  old_h = img->disp_h;
 	int  calc_xy = 0;
 	BOOL   fresh = FALSE;
-	
+
 	long   hash   = 0;
 	CACHED cached = NULL;
-	
+
+	/* Nobody currently knows whether an image costs its ~3 s in the decoder or
+	 * in the reflow it triggers, and the two want opposite fixes.  Time them
+	 * apart before optimising either. */
+	time_t t_decode = 0;
+	time_t t_calc   = 0;
+	time_t t_mark;
+
 	if (invalidated) {
 		containr_notify (frame->Container, HW_ActivityEnd, NULL);
 		return FALSE;
@@ -491,7 +503,8 @@ image_job (void * arg, long invalidated)
 		IMGINFO  info;
 		
 		containr_notify (frame->Container, HW_ImgBegLoad, img->source->FullName);
-		
+
+		t_mark = clock();
 		if ((info = get_decoder (loc->FullName)) != NULL) {
 			if ((data = setup (img, info))        != NULL) {
 				read_img (img, info, data);
@@ -501,6 +514,7 @@ image_job (void * arg, long invalidated)
 			if (info->DthBuf) free (info->DthBuf);
 			free (info);
 		}
+		t_decode = clock() - t_mark;
 		if (data) {
 			long ident = (fresh ? img_hash (data->img_w, data->img_h, 0) : 0);
 			if (data->fd_stand) {
@@ -535,12 +549,14 @@ image_job (void * arg, long invalidated)
 		long off_y = img->offset.Y;
 		long par_w = par->Box.Rect.W;
 		long par_h = par->Box.Rect.H;
+		BOOL recalc;
 		if (par->Box.MinWidth < img->disp_w) {
 			 par->Box.MinWidth = img->disp_w;
 			 par->Box.MaxWidth = 0;
 		}
+		t_mark = clock();
 		dombox_MinWidth (&frame->Page);
-		
+
 #if 0
 		if (containr_calculate (frame->Container, NULL)) {
 			calc_xy = 0;
@@ -552,8 +568,10 @@ image_job (void * arg, long invalidated)
 			calc_xy = -1;
 #endif
 
-		if (containr_calculate (frame->Container, NULL)
-		    && par_w == par->Box.Rect.W) {
+		recalc = containr_calculate (frame->Container, NULL);
+		t_calc = clock() - t_mark;
+
+		if (recalc && par_w == par->Box.Rect.W) {
 			long x, y;
 			dombox_Offset (img->offset.Origin, &x, &y);
 			x += frame->clip.g_x - frame->h_bar.scroll;
@@ -591,13 +609,21 @@ image_job (void * arg, long invalidated)
 		rec.g_y = y;
 	}
 	
+	if (logging_is_on && (t_decode || t_calc)) {
+		logprintf (LOG_BLUE, "img %ldms decode + %ldms reflow  %dx%d %s'%s'\n",
+		           (long)t_decode * 1000 / CLK_TCK,
+		           (long)t_calc   * 1000 / CLK_TCK,
+		           img->disp_w, img->disp_h,
+		           (cached ? "cached " : ""), img->source->File);
+	}
+
 	if (!cached) {
 		containr_notify (frame->Container, HW_ImgEndLoad, clip);
 	} else if (img->u.Data) {
 		containr_notify (frame->Container, HW_PageUpdated, clip);
 	}
 	containr_notify (frame->Container, HW_ActivityEnd, NULL);
-	
+
 	return FALSE;
 }
 
