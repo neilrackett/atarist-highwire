@@ -1246,12 +1246,46 @@ group_box (PARSER parser, HTMLTAG tag, H_ALIGN align)
 
 
 /*============================================================================*/
+BOOL hw_LowMemory = FALSE;
+
+/* Somewhere for a box that could not be allocated to be written to.  It is
+ * never linked into the tree and never freed, so the handful of writes between
+ * the failure and the parse loop noticing are harmless. */
+static DOMBOX lowmem_scratch;
+
+void
+hw_lowmemory (void)
+{
+	if (!hw_LowMemory) {
+		hw_LowMemory = TRUE;
+		errprintf ("out of memory: the page will stop here.\n");
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+static DOMBOX *
+lowmem_box (BOXCLASS bc)
+{
+	hw_lowmemory();
+	dombox_ctor (&lowmem_scratch, NULL, 0);
+	lowmem_scratch.BoxClass = bc;
+
+	return &lowmem_scratch;
+}
+
+
+/*============================================================================*/
 DOMBOX *
 create_box (TEXTBUFF current, BOXCLASS bc, WORD par_top)
 {
 	DOMBOX * rparent = (DOMBOX *)&current->paragraph->Box;
 	DOMBOX * box = dombox_ctor (malloc (sizeof(DOMBOX)), current->parentbox, bc);
-	PARAGRPH par = add_paragraph (current, par_top);
+	PARAGRPH par;
+
+	if (!box) {
+		return lowmem_box (bc);
+	}
+	par = add_paragraph (current, par_top);
 
 	box->real_parent = rparent;
 	box->Margin.Top = par->Box.Margin.Top;
@@ -4437,8 +4471,9 @@ parse_html (void * arg, long invalidated)
 		parser_resumed (parser);
 	}
 	font_switch (current->word->font, NULL);
-	flags       = PF_SPACE; /* skip leading spaces */
-	linetoolong = FALSE;    /* "line too long" error printed? */
+	flags        = PF_SPACE; /* skip leading spaces */
+	linetoolong  = FALSE;    /* "line too long" error printed? */
+	hw_LowMemory = FALSE;    /* let this document have its own go at the memory */
 	encoder     = encoder_word (frame->Encoding,
 	                            current->word->font->Base->Mapping);
 	while (*symbol != '\0')
@@ -4469,6 +4504,9 @@ parse_html (void * arg, long invalidated)
 			tag = parse_tag ((flags & PF_START ? parser : NULL), &symbol);
 			if (tag && render[tag]) {
 				flags = (render[tag])(parser, &symbol, flags);
+			}
+			if (hw_LowMemory) {
+				break;   /* tested per tag: boxes are only made by tag handlers */
 			}
 			if (flags & PF_ENCDNG) {
 				encoder = encoder_word (frame->Encoding,
@@ -4712,6 +4750,9 @@ render_hrule (TEXTBUFF current, H_ALIGN align, short w, short size, BOOL shade)
 	PARAGRPH par = add_paragraph(current, 0);
 	DOMBOX * box = dombox_ctor (malloc (sizeof (DOMBOX)),
 	                            current->parentbox, BC_SINGLE);
+	if (!box) {
+		return lowmem_box (BC_SINGLE);
+	}
 	box->HtmlCode = TAG_HR;
 	box->HasBorder = TRUE;
 

@@ -211,11 +211,14 @@ add_paragraph (TEXTBUFF current, short vspace)
 		paragraph = current->paragraph; /* reuse empty paragraph */
 	}
 	
-	if (!paragraph) {
+	if (!paragraph
+	    && (paragraph = malloc (sizeof (struct paragraph_item))) == NULL) {
+		hw_lowmemory();     /* carry on in the paragraph we already have */
+		paragraph = current->paragraph;
+
+	} else if (paragraph != current->paragraph) {
 		PARAGRPH copy_from = current->paragraph;
-		
-		paragraph = malloc (sizeof (struct paragraph_item));
-		
+
 		copy_from->next_paragraph = paragraph;
 		current->prev_par         = copy_from;
 		current->paragraph        = paragraph;

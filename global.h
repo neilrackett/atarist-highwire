@@ -205,6 +205,11 @@ void launch_viewer (const char *name);
 
 /* in render.c */
 
+extern BOOL hw_LowMemory; /* an allocation on the parse path failed; the parse
+                           * loop stops at the next tag so the page ends early
+                           * instead of the session ending */
+void     hw_lowmemory    (void);
+
 FNTSTACK css_text_styles (PARSER, FNTSTACK);
 void     css_box_styles  (PARSER, DOMBOX *, H_ALIGN);
 int parse_html  (void*, long);
