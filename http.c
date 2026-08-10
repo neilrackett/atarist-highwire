@@ -502,6 +502,12 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 			const char * ua_col = (planes == 1                       ? "mono"
 			                     : (cfg_GreyPalette && planes == 2)  ? "gray"
 			                                                        : "color");
+			/* The shape of one pixel, so a proxy can hand us images already
+			 * corrected for a screen that is not square.  It reports what we
+			 * will really do, so 1:1 when we would leave the image alone --
+			 * the far end then needs no policy, just "if not 1:1, apply it". */
+			WORD ua_aspw, ua_asph;
+			image_AspectRatio (&ua_aspw, &ua_asph);
 			len = sprintf (buffer,
 			      "HOST: %s\r\n"
 			      "User-Agent: Mozilla 4.0 (compatible; Atari "
@@ -516,9 +522,11 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 			       * rather than leave an HTTP/1.1 peer holding it open */
 			      "Connection: close\r\n"
 			      "UA-pixels: %ix%i\r\n"
-			      "UA-color: %s%i\r\n",
+			      "UA-color: %s%i\r\n"
+			      "UA-aspect: %i:%i\r\n",
 			      name, (stack ? stack : ""),
-			      vdi_dev.xres +1, vdi_dev.yres +1, ua_col, planes);
+			      vdi_dev.xres +1, vdi_dev.yres +1, ua_col, planes,
+			      ua_aspw, ua_asph);
 			len = inet_send (sock, buffer, len);
 		}
 		if ((long)len > 0 && referer) {

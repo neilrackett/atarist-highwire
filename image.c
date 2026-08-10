@@ -70,31 +70,67 @@ squash (short v, ULONG ffx)
 	return (v > 0 ? v : 1);
 }
 
+/* Screen shape and squash factor are constant, so decide them once. */
+static WORD  aspect_axis = -1;
+static ULONG aspect_ffx;
+
+static void
+aspect_setup (void)
+{
+	if (aspect_axis < 0) {
+		WORD wp = vdi_dev.wpixel;
+		WORD hp = vdi_dev.hpixel;
+		aspect_axis = 0;
+		if (cfg_ImgAspect && wp > 0 && hp > 0) {
+			if (hp >= wp + wp /2) {
+				aspect_axis = 'h';
+				aspect_ffx  = (((ULONG)wp <<16) + hp /2) / hp;
+			} else if (wp >= hp + hp /2) {
+				aspect_axis = 'w';
+				aspect_ffx  = (((ULONG)hp <<16) + wp /2) / wp;
+			}
+		}
+	}
+}
+
+/*============================================================================*/
+/* The shape of one screen pixel, for a transcoding proxy to size images with.
+ * Reports what we will really do, not what the hardware says: 1:1 whenever no
+ * correction would be applied, so the far end needs no policy of its own.
+ * Sharing aspect_setup() with aspect_adjust() keeps the two from drifting --
+ * a disagreement here would show up as subtly wrong geometry rather than as a
+ * failure.
+*/
+void
+image_AspectRatio (WORD * wpx, WORD * hpx)
+{
+	aspect_setup();
+
+	if (aspect_axis) {
+		*wpx = vdi_dev.wpixel;
+		*hpx = vdi_dev.hpixel;
+	} else {
+		*wpx = *hpx = 1;
+	}
+}
+
+
+/*----------------------------------------------------------------------------*/
 /* Where screen pixels are far from square, squash the display size's long
  * axis by the reported pixel size so pictures keep their real world aspect
  * ratio: the height on tall pixels (ST medium), the width on wide ones
- * (TT low).  Screen shape and factor are constant, so decide them once.
+ * (TT low).
  */
 static void
 aspect_adjust (IMAGE img)
 {
-	static WORD  axis = -1;
-	static ULONG ffx;
+	WORD  axis;
+	ULONG ffx;
 
-	if (axis < 0) {
-		WORD wp = vdi_dev.wpixel;
-		WORD hp = vdi_dev.hpixel;
-		axis = 0;
-		if (cfg_ImgAspect && wp > 0 && hp > 0) {
-			if (hp >= wp + wp /2) {
-				axis = 'h';
-				ffx  = (((ULONG)wp <<16) + hp /2) / hp;
-			} else if (wp >= hp + hp /2) {
-				axis = 'w';
-				ffx  = (((ULONG)hp <<16) + wp /2) / wp;
-			}
-		}
-	}
+	aspect_setup();
+	axis = aspect_axis;
+	ffx  = aspect_ffx;
+
 	if (axis == 'h') {
 		img->disp_h = squash (img->disp_h, ffx);
 	} else if (axis == 'w') {

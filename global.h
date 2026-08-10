@@ -267,6 +267,7 @@ IMAGE new_image    (FRAME, TEXTBUFF, const char * src, LOCATION,
 void  delete_image (IMAGE*);
 void         image_calculate (IMAGE, short par_width);
 const char * image_dispinfo  (void);
+void         image_AspectRatio (WORD * wpx, WORD * hpx);
 void         reload_image (IMAGE*);
 
 /* in W_Struct.c */
