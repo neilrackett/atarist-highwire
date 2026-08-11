@@ -498,12 +498,23 @@ image_job (void * arg, long invalidated)
 			cached = info.Object;
 		
 		} else if (res & CR_FOUND) {
-			ident = info.Ident;
-			if ((char)(ident >>24) == 0xFF) {
+			/* Entries are stored under the background the decoder settled on,
+			 * but we asked with the one the paragraph gave us, so CR_MATCH
+			 * cannot have fired.  Correct it and ask again rather than making
+			 * do with whatever the query happened to offer: it returns the
+			 * first entry for this location, which is the most recent, so a
+			 * second size of the same image would otherwise never match its
+			 * own entry and would be decoded again on every alternation.
+			*/
+			if ((char)(info.Ident >>24) == 0xFF) {
 				img->backgnd = -1;
 			}
-			if (ident == img_hash (img->disp_w, img->disp_h, img->backgnd)) {
-				cached = info.Object;
+			ident = img_hash (img->disp_w, img->disp_h, img->backgnd);
+			if (ident == info.Ident) {
+				cached = info.Object;      /* the correction was enough */
+
+			} else if ((res = cache_query (loc, ident, &info)) & CR_MATCH) {
+				cached = info.Object;      /* our own entry was further down */
 			}
 		}
 		if (!cached) {
