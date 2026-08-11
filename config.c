@@ -9,6 +9,7 @@
 #include "version.h"
 #include "file_sys.h"
 #include "global.h"
+#include "Logging.h"
 #include "Location.h"
 #include "mime.h"
 #include "http.h"
@@ -532,6 +533,15 @@ cfg_http_proxy (char * param, long arg)
 
 /*----------------------------------------------------------------------------*/
 static void
+cfg_logfile (char * param, long arg)
+{
+	(void)arg;
+	log_setfile (param);
+}
+
+
+/*----------------------------------------------------------------------------*/
+static void
 cfg_max_doc (char * param, long arg)
 {
 	long n = atol (param);
@@ -712,6 +722,7 @@ read_config(void)
 				{ "LINE_SPACING",         cfg_linespc,   0 },
 				{ "LOCAL_WEB",            cfg_localweb,  0 },
 				{ "LOGGING",              cfg_Func,      (long)menu_logging     },
+				{ "LOG_FILE",             cfg_logfile,   0 },
 				{ "MAX_DOCUMENT",         cfg_max_doc,   0 },
 				{ "MAX_IMAGES",           cfg_max_img,   0 },
 				{ "NORMAL",               cfg_font,      FA(normal_font, 0, 0)  },

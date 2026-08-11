@@ -35,6 +35,11 @@ extern BOOL logging_is_on;
 
 void init_logging(void);
 
+/* Send the log to a file instead of the console, and turn logging on.  The
+ * console is the screen on real hardware, so this is the only way to read a
+ * run afterwards.  NULL or "" closes it and goes back to the console. */
+void log_setfile (const char * path);
+
 /* errprintf() is for possible errors in HighWire.
  * Same parameters as printf(). */
 void errprintf(const char *s, ...) VARIADIC(1,2);

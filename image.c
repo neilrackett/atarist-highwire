@@ -482,6 +482,7 @@ image_job (void * arg, long invalidated)
 	 * apart before optimising either. */
 	time_t t_decode = 0;
 	time_t t_calc   = 0;
+	time_t t_draw   = 0;
 	time_t t_mark;
 
 	if (invalidated) {
@@ -640,20 +641,30 @@ image_job (void * arg, long invalidated)
 		rec.g_y = y;
 	}
 	
-	if (logging_is_on && (t_decode || t_calc)) {
-		logprintf (LOG_BLUE, "img %ldms decode + %ldms reflow  %dx%d %s'%s'\n",
-		           (long)t_decode * 1000 / CLK_TCK,
-		           (long)t_calc   * 1000 / CLK_TCK,
-		           img->disp_w, img->disp_h,
-		           (cached ? "cached " : ""), img->source->File);
-	}
-
+	/* Both of these redraw synchronously -- window_redraw() walks the AES
+	 * rectangle list and calls the draw function itself -- so the dither and
+	 * blit land here rather than back in the event loop.  Timed because
+	 * decode and reflow together do not account for the time between one
+	 * image arriving and the next being asked for. */
+	t_mark = clock();
 	if (!cached) {
 		containr_notify (frame->Container, HW_ImgEndLoad, clip);
 	} else if (img->u.Data) {
 		containr_notify (frame->Container, HW_PageUpdated, clip);
 	}
+	t_draw = clock() - t_mark;
+
 	containr_notify (frame->Container, HW_ActivityEnd, NULL);
+
+	if (logging_is_on && (t_decode || t_calc || t_draw)) {
+		logprintf (LOG_BLUE,
+		           "img %ldms decode + %ldms reflow + %ldms draw  %dx%d %s'%s'\n",
+		           (long)t_decode * 1000 / CLK_TCK,
+		           (long)t_calc   * 1000 / CLK_TCK,
+		           (long)t_draw   * 1000 / CLK_TCK,
+		           img->disp_w, img->disp_h,
+		           (cached ? "cached " : ""), img->source->File);
+	}
 
 	return FALSE;
 }
