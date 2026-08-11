@@ -507,6 +507,14 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 			 * will really do, so 1:1 when we would leave the image alone --
 			 * the far end then needs no policy, just "if not 1:1, apply it". */
 			WORD ua_aspw, ua_asph;
+			/* Schemes we will send as absolute URIs on the request line and
+			 * expect routed; http is implied and not listed.  Separate from
+			 * UA-pixels on purpose: knowing our screen says nothing about
+			 * being able to route https, and a proxy that inferred one from
+			 * the other would leave https URLs unrewritten for a browser that
+			 * cannot fetch them.  True exactly when a proxy is configured,
+			 * which is the same condition proto_isFetchable() applies. */
+			const char * ua_fetch = (proxy ? "UA-fetch: https\r\n" : "");
 			image_AspectRatio (&ua_aspw, &ua_asph);
 			len = sprintf (buffer,
 			      "HOST: %s\r\n"
@@ -523,10 +531,11 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 			      "Connection: close\r\n"
 			      "UA-pixels: %ix%i\r\n"
 			      "UA-color: %s%i\r\n"
-			      "UA-aspect: %i:%i\r\n",
+			      "UA-aspect: %i:%i\r\n"
+			      "%s",
 			      name, (stack ? stack : ""),
 			      vdi_dev.xres +1, vdi_dev.yres +1, ua_col, planes,
-			      ua_aspw, ua_asph);
+			      ua_aspw, ua_asph, ua_fetch);
 			len = inet_send (sock, buffer, len);
 		}
 		if ((long)len > 0 && referer) {
