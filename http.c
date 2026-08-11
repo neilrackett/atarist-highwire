@@ -700,7 +700,7 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 	
 	if (reply <= 0) {
 		strcpy (buffer, (reply == -ECONNRESET
-		                 ? "Connection reset by peer." : "Protocoll Error!\n"));
+		                 ? "Connection reset by peer." : "Protocol error!\n"));
 	}
 	if (hdr->SrvrDate <= 0) {
 		hdr->SrvrDate = (hdr->Modified > 0 ? hdr->Modified : hdr->LoclDate);
