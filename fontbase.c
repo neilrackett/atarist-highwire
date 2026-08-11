@@ -55,32 +55,36 @@ font_base (WORD id, UWORD style)
 		}
 		if (!found) {
 			XFNT_INFO info = { sizeof(XFNT_INFO), };
-			if (hw_vqt_xfntinfo (vdi_handle, 0x0001, id, 0, &info)) {
-				found = malloc (sizeof(struct s_fontbase));
-				found->List    = NULL;
-				found->Id      = id;
-				found->RealId  = info.id;
-				found->Style   = style;
-				found->Effects = 0x0000;
-				switch (info.format) {
-					case 2:
-						found->Mapping   = MAP_BITSTREAM;
-						found->SpaceCode = SPACE_BICS;
-						found->NobrkCode = NOBRK_BICS;
-						break;
-					case 4: case 8:
-						found->Mapping   = MAP_UNICODE;
-						found->SpaceCode = SPACE_UNI;
-						found->NobrkCode = NOBRK_UNI;
-						break;
-					case 1: default:
-						found->Mapping   = MAP_ATARI;
-						found->SpaceCode = SPACE_ATARI;
-						found->NobrkCode = NOBRK_ATARI;
-				}
-				found->Next  = base;
-				base         = found;
+			if (!hw_vqt_xfntinfo (vdi_handle, 0x0001, id, 0, &info)) {
+				return NULL;              /* no such font: the normal miss */
 			}
+			if ((found = malloc (sizeof(struct s_fontbase))) == NULL) {
+				hw_lowmemory();
+				return NULL;              /* caller falls back to a near face */
+			}
+			found->List    = NULL;
+			found->Id      = id;
+			found->RealId  = info.id;
+			found->Style   = style;
+			found->Effects = 0x0000;
+			switch (info.format) {
+				case 2:
+					found->Mapping   = MAP_BITSTREAM;
+					found->SpaceCode = SPACE_BICS;
+					found->NobrkCode = NOBRK_BICS;
+					break;
+				case 4: case 8:
+					found->Mapping   = MAP_UNICODE;
+					found->SpaceCode = SPACE_UNI;
+					found->NobrkCode = NOBRK_UNI;
+					break;
+				case 1: default:
+					found->Mapping   = MAP_ATARI;
+					found->SpaceCode = SPACE_ATARI;
+					found->NobrkCode = NOBRK_ATARI;
+			}
+			found->Next  = base;
+			base         = found;
 		}
 	}
 	return found;
@@ -91,13 +95,18 @@ font_base (WORD id, UWORD style)
 FONT
 font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 {
-	FONT     prev = word->font;
+	FONT     prev;
 	FONT     same = NULL, font;
 	FONTBASE base;
 	UWORD    effect;
 	BOOL     condns;
 	WORD     set_id;
-	
+
+	if (!word) {
+		return NULL;  /* the word allocator gave up; nothing to style */
+	}
+	prev = word->font;
+
 	if (type < 0) {
 		type = TAgetFont (word->attr);
 	} else {
@@ -133,15 +142,27 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 		    || ((tmp = font_base (fonts[type][0][0], 0)) == NULL)) {
 			tmp = font_base (1, 0);
 		}
+		if (!tmp) {
+			return NULL;   /* not one face to be had: leave word->font alone */
+		}
 		/* clone the found fontbase
 		*/
-		*(base = malloc (sizeof(struct s_fontbase))) = *tmp;
-		base->List    = NULL;
-		base->Id      = set_id;
-		base->Style   = effect;
-		base->Effects = effect & ~(tmp->Style & ~tmp->Effects);
-		
-		tmp->Next = base; /* insert the clone in the list */
+		if ((base = malloc (sizeof(struct s_fontbase))) == NULL) {
+			/* Out of memory: wear the nearest face we already have rather
+			 * than lose the session.  It is shared, so it must not be
+			 * restyled here -- the text comes out unstyled, not wrong. */
+			hw_lowmemory();
+			base = tmp;
+
+		} else {
+			*base         = *tmp;
+			base->List    = NULL;
+			base->Id      = set_id;
+			base->Style   = effect;
+			base->Effects = effect & ~(tmp->Style & ~tmp->Effects);
+
+			tmp->Next = base; /* insert the clone in the list */
+		}
 	}
 	
 	/* search in the fontbase's list for a matching entry
@@ -167,8 +188,25 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 			vst_effects  (vdi_handle, base->Effects);
 		}
 		hw_vst_arbpt (vdi_handle, points, u,u, (WORD*)&cellwd, u);
-		
-		font = malloc (sizeof(struct s_font));
+
+		if ((font = malloc (sizeof(struct s_font))) == NULL) {
+			/* Out of memory, and this is the site that a big page reaches
+			 * first: a face already built at the wrong condensation, or at
+			 * the wrong size, or simply the one the word already had, all
+			 * beat losing the session.  Nearest first. */
+			hw_lowmemory();
+			if ((font = (same ? same : base->List ? base->List : prev)) == NULL) {
+				return NULL;          /* nothing at all: leave word->font */
+			}
+			if (font_switch (font, prev)) {
+				vst_effects (vdi_handle, font->Base->Effects);
+			}
+			word->font           = font;
+			word->word_height    = font->Ascend;
+			word->word_tail_drop = font->Descend;
+
+			return font;
+		}
 		if (same) {
 			*font = *same;
 			same->Next = font;

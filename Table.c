@@ -211,7 +211,10 @@ table_row (TEXTBUFF current, WORD color, H_ALIGN h_align, V_ALIGN v_align,
 
 	if (beginNend) {
 		if (!row) {
-			row = malloc (sizeof (struct s_table_row));
+			if ((row = malloc (sizeof (struct s_table_row))) == NULL) {
+				hw_lowmemory();
+				return;
+			}
 			row->Cells   = NULL;
 			row->NextRow = NULL;
 			table->NumRows++;
@@ -237,6 +240,10 @@ new_cell (DOMBOX * parent, TAB_CELL left_side, short padding, BOOL border)
 {
 	TAB_CELL cell = malloc (sizeof (struct s_table_cell));
 
+	if (!cell) {
+		hw_lowmemory();
+		return NULL;
+	}
 	if (left_side) {
 		left_side->RightCell = cell;
 	}
@@ -352,6 +359,9 @@ table_cell (PARSER parser, WORD color, H_ALIGN h_align, V_ALIGN v_align,
 	/* if we haven't a cell here we need to create a new one */
 	if (!cell) {
 		cell = new_cell (box, stack->WorkCell, table->Padding, table->NonCssBorder);
+		if (!cell) {
+			return;   /* out of memory: the row simply ends here */
+		}
 		if (!row->Cells) {
 			row->Cells = cell;
 		}
@@ -359,7 +369,9 @@ table_cell (PARSER parser, WORD color, H_ALIGN h_align, V_ALIGN v_align,
 	stack->WorkCell = cell;
 	cell->_debug = stack->_debug++;
 	parser->Current.parentbox = &cell->Box;
-	new_paragraph (&parser->Current);
+	if (new_paragraph (&parser->Current) == NULL) {
+		return;   /* out of memory: the cell stays empty rather than crash */
+	}
 	cell->Box.TextAlign = parser->Current.paragraph->Box.TextAlign = h_align;
 	cell->AlignV        = v_align;
 	cell->c_Height      = (height <= 1024 ? height : 1024);

@@ -118,7 +118,10 @@ new_word (TEXTBUFF current, BOOL do_link)
 	struct word_item * word      = NULL;
 	
 	if (!copy_from) {
-		if ((word = _alloc (NULL)) == NULL) return NULL;
+		if ((word = _alloc (NULL)) == NULL) {
+			hw_lowmemory();
+			return NULL;
+		}
 		word->attr.packed    = TEXTATTR (current->font->Size,
 			                              current->font->Color);
 		word->font           = NULL;
@@ -127,7 +130,10 @@ new_word (TEXTBUFF current, BOOL do_link)
 		word->link           = NULL;
 	} else /*if (current->text > current->buffer)*/ {
 		word_store (current);
-		if ((word = _alloc (copy_from)) == NULL) return NULL;
+		if ((word = _alloc (copy_from)) == NULL) {
+			hw_lowmemory();
+			return NULL;
+		}
 		word->attr.packed    = copy_from->attr.packed;
 		word->font           = copy_from->font;
 		word->word_height    = copy_from->word_height;

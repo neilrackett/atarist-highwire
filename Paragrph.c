@@ -138,16 +138,30 @@ PARAGRPH
 new_paragraph (TEXTBUFF current)
 {
 	long * chk;
+	WORDITEM keep_word = current->word;
 	PARAGRPH paragraph = malloc (sizeof (struct paragraph_item));
 
+	if (!paragraph) {
+		hw_lowmemory();
+		return current->paragraph;  /* caller carries on with what it had */
+	}
 	current->styles.italic     = 0;
 	current->styles.bold       = 0;
 	current->styles.underlined = 0;
 	current->styles.strike     = 0;
-	
+
 	current->word = NULL;
-	
-	paragraph->item = new_word (current, FALSE);
+
+	if ((paragraph->item = new_word (current, FALSE)) == NULL) {
+		/* No word to hang it on.  Put back the one we just blanked -- a NULL
+		 * current->word is what reaches font_byType and takes the session
+		 * out -- and let the caller keep the paragraph it already had. */
+		hw_lowmemory();
+		free (paragraph);
+		current->word = keep_word;
+
+		return current->paragraph;
+	}
 	paragraph->Line = NULL;
 	
 	dombox_ctor (&paragraph->Box, current->parentbox, BC_TXTPAR);
