@@ -36,7 +36,7 @@ BOOL         cfg_AVWindow     = FALSE;
 BOOL         cfg_GlobalCycle  = FALSE;
 WORD         cfg_ConnTout     = 1;
 WORD         cfg_ConnRetry    = 3;
-ULONG        cfg_MaxDocument  = 512uL * 1024uL;
+ULONG        cfg_MaxDocument  = 256uL * 1024uL;
 UWORD        cfg_MaxImages    = 0;
 
 static const char * cfg_magic = _HIGHWIRE_VERSION_ " [" __DATE__ "]";
