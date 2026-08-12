@@ -371,7 +371,9 @@ menu_about (void)
 	               "[" _HIGHWIRE_FULLNAME_ " HTML Browser"
 	               "|GEM Menu v. 0.4"
 	               "|Core     v. " _HIGHWIRE_VERSION_ " " _HIGHWIRE_BETATAG_
-	               "|http://highwire.atari-users.net/]"
+	               "|http://highwire.atari-users.net/"
+	               /* two spaces: lines the revision up with the 'v.' above */
+	               "|LowWire  " _LOWWIRE_REV_ " " _LOWWIRE_URL_ "]"
 	               "[  OK  ]");
 }
 

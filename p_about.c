@@ -173,7 +173,7 @@ about_highwire (TEXTBUFF current, WORD link_color)
 	const char * i_net = inet_info();
 #endif
 	char     buf[100];
-	WORDITEM list[10], * w = &list[-1];
+	WORDITEM list[12], * w = &list[-1];  /* one row per label below, no spare */
 	WORD     tab   = 0;
 	size_t   m_num = module_info (NULL);
 	
@@ -183,7 +183,11 @@ about_highwire (TEXTBUFF current, WORD link_color)
 	#endif
 	
 	*(++w) = render_text (current, "\025Core:\005\024\022"
-	                      _HIGHWIRE_VERSION_ "\020 \026" _HIGHWIRE_BETATAG_ "\024\n");
+	                      _HIGHWIRE_VERSION_ "\020 \026" _HIGHWIRE_BETATAG_ "\024\r");
+	tab    = max (tab, (*w)->word_width);
+
+	*(++w) = render_text (current, "\025LowWire:\005\024\022" _LOWWIRE_REV_
+	                      "\020 \026" _LOWWIRE_URL_ "\024\n");
 	tab    = max (tab, (*w)->word_width);
 	
 	font_byType (-1, -1, font_step2size (2), current->word);

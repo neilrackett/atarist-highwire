@@ -409,6 +409,7 @@ extern MFDB       logo_icon, logo_mask;
 static WINDOW     splash     = NULL;
 static const char spl_name[] = _HIGHWIRE_FULLNAME_;
 static const char spl_vers[] = _HIGHWIRE_VERSION_" "_HIGHWIRE_BETATAG_;
+static const char spl_fork[] = "LowWire " _LOWWIRE_REV_;
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static int
@@ -492,6 +493,7 @@ vTab_draw (WINDOW This, const GRECT * clip)
 	}
 	v_gtext (vdi_handle, p[3].p_x +8, p[2].p_y,     spl_name);
 	v_gtext (vdi_handle, p[3].p_x +8, p[2].p_y +16, spl_vers);
+	v_gtext (vdi_handle, p[3].p_x +8, p[2].p_y +32, spl_fork);
 	v_show_c (vdi_handle, 1);
 	vst_alignment (vdi_handle, TA_LEFT, TA_BASE, &dmy,&dmy);
 	vs_clip_off (vdi_handle);
@@ -502,9 +504,16 @@ static void
 open_splash (void)
 {
 	GRECT curr;
-	WORD w = 8 + logo_icon.fd_w + 8
-	       + (max ((int)sizeof(spl_name), (int)sizeof(spl_vers)) -1) *8 + 8;
-	WORD h = 8 + logo_icon.fd_h + 8;
+	int   tlen = (int)sizeof(spl_name);
+	WORD  w, h;
+
+	if ((int)sizeof(spl_vers) > tlen) tlen = (int)sizeof(spl_vers);
+	if ((int)sizeof(spl_fork) > tlen) tlen = (int)sizeof(spl_fork);
+
+	w = 8 + logo_icon.fd_w + 8 + (tlen -1) *8 + 8;
+	/* three lines of text now, so the logo is no longer always the tallest */
+	h = 8 + max (logo_icon.fd_h, 3 *16) + 8;
+
 	wind_get_grect (DESKTOP_HANDLE, WF_WORKXYWH, &curr);
 	curr.g_x += (curr.g_w - w) /2;
 	curr.g_y += (curr.g_h - h) /2;
