@@ -392,7 +392,13 @@ vTab_format (DOMBOX * This, long width, BLOCKER blocker)
 		if (!word) break;
 
 		if ((line = *p_line) == NULL) {
-			*p_line = line = malloc (sizeof(struct word_line));
+			if ((*p_line = line = malloc (sizeof(struct word_line))) == NULL) {
+				/* Out of memory laying the paragraph out.  Stop here: the
+				 * lines built so far stay, the list is already terminated by
+				 * the NULL just stored, and the tail below skips itself. */
+				hw_lowmemory();
+				break;
+			}
 			line->NextLine = NULL;
 		}
 		p_line = &line->NextLine;

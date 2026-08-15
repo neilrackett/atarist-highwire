@@ -494,6 +494,9 @@ history_create (CONTAINR cont, const char * name, HISTORY prev)
 	
 	hist = malloc (sizeof (struct s_history_priv) +
 	               sizeof (HISTITEM) * (cnt_all -1));
+	if (!hist) {
+		return NULL;   /* the caller does without a history entry */
+	}
 	hist->Count      = cnt_all;
 	hist->Frames     = cnt_frm;
 	hist->List->Name = NULL;

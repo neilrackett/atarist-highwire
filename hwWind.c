@@ -1058,6 +1058,15 @@ hist_append (HwWIND This, CONTAINR sub)
 	} else {
 		This->History[menu] = history_create (This->Pane, This->Base.Name, NULL);
 	}
+	if (!This->History[menu]) {
+		/* Out of memory: this page simply gets no history entry.  The slot
+		 * holds NULL and HistUsed is left alone, so it stays outside the used
+		 * range -- which also clears the duplicate pointer the shift above
+		 * leaves behind, and that would otherwise be freed twice.
+		*/
+		hw_lowmemory();
+		return;
+	}
 	if (prev >= 0) {
 		This->History[prev]->Text[0] = ' ';
 	}
