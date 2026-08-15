@@ -28,6 +28,39 @@ else
 	OPTS = $(CPU:%=-m%) $(OPTFLAGS)
 endif
 
+# -m68020 and up select the m68020-60 multilib, which was built for a hardware
+# FPU.  Its startup code stops with "This program requires a 68881 or higher
+# arithmetic coprocessor" on a machine that hasn't got one, and a 68030 has no
+# FPU of its own -- a Falcon or TT only has one if a 68882 was fitted, and most
+# Falcons never were.  So the 030 build links the plain 68000 libraries instead.
+# HighWire does no floating point arithmetic of its own, so nothing is lost
+# except speed: the C library is then 68000 code and calls software multiply and
+# divide helpers, which costs about 20% on page rendering (measured under Hatari
+# on a Falcon and a TT, both with a 68882 fitted).
+# -msoft-float alone will not do it, as there is no soft-float 68020 multilib
+# for it to select, and libgcc has to come from the same set or libpng's gamma
+# code still reaches a hardware __fixunsdfsi.
+#
+#   FPU=1  hardware floating point libraries (faster, needs an FPU)
+#   FPU=0  soft ones -- for a 68LC040 or 68EC060, which have no FPU either
+#
+# Only the link is affected, so the two 030 builds share their object files and
+# the second one is just a relink.  dist ships both: highwire.030 runs on any
+# 030, highwire.03F is the faster one for a TT or a Falcon with a 68882.
+#
+ifeq ($(CPU),68030)
+FPU ?= 0
+else
+FPU ?= 1
+endif
+
+ifneq ($(CPU),5475)
+ifeq ($(FPU),0)
+SOFTFLOAT := -L$(dir $(shell $(CC) -m68000 -print-file-name=libc.a)) \
+             -L$(dir $(shell $(CC) -m68000 -print-libgcc-file-name))
+endif
+endif
+
 DISABLED_WARNINGS = -Wno-deprecated-declarations
 WARN = \
 	-Wall \
@@ -47,7 +80,7 @@ CHECKGIF := $(shell if echo -e "$(hash)include <gif_lib.h> \\nconst char *versio
 CFLAGS = $(INCLUDE) $(WARN) $(OPTS) $(DEFS)
 ASFLAGS = $(OPTS)
 LDFLAGS = -s
-LIBS = -lgem -lcflib -liio $(CHECKGIF) -ljpeg -lpng -lz -lm \
+LIBS = $(SOFTFLOAT) -lgem -lcflib -liio $(CHECKGIF) -ljpeg -lpng -lz -lm \
        #-lsocket
 
 ifeq ($(CPU),5475)
@@ -140,6 +173,7 @@ $(TARGET): $(OBJS)
 
 000: ; $(MAKE) CPU=68000
 030: ; $(MAKE) CPU=68030
+03f: ; $(MAKE) CPU=68030 FPU=1
 040: ; $(MAKE) CPU=68040
 060: ; $(MAKE) CPU=68020-60
 v4e: ; $(MAKE) CPU=5475
@@ -163,6 +197,8 @@ dist::
 	mv highwire.app $(DISTDIR)/highwire.000
 	$(MAKE) CPU=68030
 	mv highwire.app $(DISTDIR)/highwire.030
+	$(MAKE) CPU=68030 FPU=1
+	mv highwire.app $(DISTDIR)/highwire.03F
 	$(MAKE) CPU=68040
 	mv highwire.app $(DISTDIR)/highwire.040
 	$(MAKE) CPU=68020-60
