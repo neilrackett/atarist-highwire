@@ -588,7 +588,14 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 				len = inet_send (sock, post_buf->Buffer, n);
 			}
 		}
-		if ((long)len < 0 || (long)(len = inet_send (sock, "\r\n", 2)) < 0) {
+		/* The blank line that ends the headers.  A POST has already sent one
+		 * ahead of its body, and sending a second puts two bytes on the wire
+		 * past the Content-length we just promised.
+		*/
+		if ((long)len >= 0 && !post_buf) {
+			len = inet_send (sock, "\r\n", 2);
+		}
+		if ((long)len < 0) {
 			if ((long)len < -1) {
 				sprintf (buffer, "Error: %s\n", strerror(-(int)len));
 			} else {
