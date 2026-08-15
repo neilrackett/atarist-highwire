@@ -127,6 +127,43 @@ dflt_cachedir (void)
 }
 
 
+/*----------------------------------------------------------------------------*/
+/* A fixed document cap suits exactly one size of machine.  Take it from the
+ * memory actually there instead: measured, a 4MB ST parses 128k of markup and
+ * runs out on 192k, and Malloc() reports about 3MB free at this point on that
+ * machine -- so a twenty-fourth of what is free is what the DOM built from it
+ * can stand.  Checked against 2, 4, 8 and 14MB: the 4MB case lands on 129k,
+ * which is the size measured to work there, and none of them fall over.
+ *
+ * The ratio is what matters rather than the machine: it leaves a floppy-only
+ * STE something it can survive and gives a TT or Falcon one worth having.
+ *
+ * Capped at 512k because past that the limit stops being memory and becomes
+ * time -- parsing is worse than linear -- and nobody should meet a five minute
+ * page by default.  MAX_DOCUMENT is read afterwards and overrides all of this,
+ * including back to 0 for no cap at all.
+*/
+static void
+dflt_maxdocument (void)
+{
+	long avail;
+
+	/* A TT or Falcon keeps most of its memory in TT ram, so ask for that
+	 * where the system knows what it is -- the same test main() uses. */
+	if (Sysconf (-1) != -EINVFN) {
+		avail = (long)Mxalloc (-1L, 3 /* prefer TT ram */);
+	} else {
+		avail = (long)Malloc (-1L);
+	}
+	if (avail > 0) {
+		avail /= 24;
+		if      (avail <   8L *1024) avail =   8L *1024;
+		else if (avail > 512L *1024) avail = 512L *1024;
+		cfg_MaxDocument = (ULONG)avail;
+	}
+}
+
+
 /*============================================================================*/
 BOOL
 save_config (const char * key, const char * arg)
@@ -649,8 +686,11 @@ read_config(void)
 	static long backgnd = -1;
 	
 	char l[HW_PATH_MAX], * p, * d;
-	FILE   * fp = open_cfg ("r");
-	
+	FILE   * fp;
+
+	dflt_maxdocument(); /* before the file is read, so MAX_DOCUMENT wins */
+	fp = open_cfg ("r");
+
 	if (!fp) {
 		save_config (NULL, NULL);
 		dflt_cachedir();
