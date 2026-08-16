@@ -10,7 +10,6 @@
 #define _HIGHWIRE_BOOKMARK_  "bookmark.htm"
 #define _HIGHWIRE_BKM_CSS_   "bookmark.css"
 
-#define _ERROR_SPEEDO_   "needs SpeedoGDOS or NVDI \362 3!"
 #define _ERROR_NOMEM_    "got no GLOBAL memory!"
 #define _ERROR_NORSC_    "cannot load RSC file '"_HIGHWIRE_RSC_"'!"
 
