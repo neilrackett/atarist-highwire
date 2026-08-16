@@ -7,10 +7,6 @@ PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f 2)
 echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
 # get PROJECT_VERSION
 PROJECT_VERSION=`sed -n 's/.*_HIGHWIRE_VERSION_[\t ]*"\([^"]*\)"/\1/p' version.h`
-beta=`sed -n 's/.*_HIGHWIRE_BETATAG_.*"\([^"]*\)"/\1/p' version.h`
-if test "$beta" != ""; then
-	PROJECT_VERSION="${PROJECT_VERSION}-beta${beta}"
-fi
 echo "PROJECT_VERSION=${PROJECT_VERSION}" >> $GITHUB_ENV
 INSTALL_DIR="/tmp/${PROJECT_NAME}"
 echo "INSTALL_DIR=${INSTALL_DIR}" >> $GITHUB_ENV

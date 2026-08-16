@@ -485,10 +485,9 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 			const char * stack = inet_info();
 			len = sprintf (buffer,
 			      "HOST: %s\r\n"
-			      "User-Agent: Mozilla 4.0 (compatible; Atari %s/%i.%i.%i %s)\r\n",
-			      name,
-			      _HIGHWIRE_FULLNAME_, _HIGHWIRE_MAJOR_, _HIGHWIRE_MINOR_,
-			      _HIGHWIRE_REVISION_, (stack ? stack : ""));
+			      "User-Agent: Mozilla 4.0 (compatible; Atari "
+			      _HIGHWIRE_FULLNAME_ "/" _HIGHWIRE_VERSION_ " %s)\r\n",
+			      name, (stack ? stack : ""));
 			len = inet_send (sock, buffer, len);
 		}
 		if ((long)len > 0 && referer) {

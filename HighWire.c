@@ -408,7 +408,7 @@ highwire_ex (void)
 extern MFDB       logo_icon, logo_mask;
 static WINDOW     splash     = NULL;
 static const char spl_name[] = _HIGHWIRE_FULLNAME_;
-static const char spl_vers[] = _HIGHWIRE_VERSION_" "_HIGHWIRE_BETATAG_;
+static const char spl_vers[] = _HIGHWIRE_VERSION_;
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static int

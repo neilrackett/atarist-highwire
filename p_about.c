@@ -183,7 +183,7 @@ about_highwire (TEXTBUFF current, WORD link_color)
 	#endif
 	
 	*(++w) = render_text (current, "\025Core:\005\024\022"
-	                      _HIGHWIRE_VERSION_ "\020 \026" _HIGHWIRE_BETATAG_ "\024\n");
+	                      _HIGHWIRE_VERSION_ "\020\n");
 	tab    = max (tab, (*w)->word_width);
 	
 	font_byType (-1, -1, font_step2size (2), current->word);
