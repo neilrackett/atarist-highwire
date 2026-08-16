@@ -369,8 +369,7 @@ menu_about (void)
 {
 	form_alert (1, "[1]"
 	               "[" _HIGHWIRE_FULLNAME_ " HTML Browser"
-	               "|GEM Menu v. 0.4"
-	               "|Core     v. " _HIGHWIRE_VERSION_
+	               "|Core v. " _HIGHWIRE_VERSION_
 	               "|http://highwire.atari-users.net/]"
 	               "[  OK  ]");
 }

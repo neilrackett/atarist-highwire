@@ -177,11 +177,6 @@ about_highwire (TEXTBUFF current, WORD link_color)
 	WORD     tab   = 0;
 	size_t   m_num = module_info (NULL);
 	
-	#ifdef GEM_MENU
-		*(++w) = render_text (current, "\025GEM\005Menu:\005\024\0220.4\020\r");
-		tab    = (*w)->word_width;
-	#endif
-	
 	*(++w) = render_text (current, "\025Core:\005\024\022"
 	                      _HIGHWIRE_VERSION_ "\020\n");
 	tab    = max (tab, (*w)->word_width);
