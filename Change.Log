@@ -1,3 +1,31 @@
+Changes in V. 0.4.0
+
+ The 0.4 series is the first that does not need GDOS.  The ROM VDI is a
+ supported configuration rather than something to fall back to, and ST
+ low and medium resolution are first class targets.
+
+  - run on the plain ROM VDI instead of refusing to start, using the
+    resolution's own system font for the window furniture
+  - answer vq_scrninfo ourselves where the VDI cannot, and use the real
+    one when an EdDI cookie says it is there
+  - fix screen format detection and UI font sizing on the ROM VDI, and
+    read character widths from where vqt_width() actually puts them
+  - treat ST medium as a monochrome screen, with a grey palette and
+    images dithered into its four grey levels
+  - keep image aspect ratio on screens with non-square pixels, and size
+    image placeholders like the rendering they stand for
+  - fit the menu bar onto narrow screens
+  - give bitmap font lines room to breathe, and centre furniture text
+  - restore the whole palette at exit, not just the ST medium greys
+  - keep diagnostics off the GEM screen
+  - create a CACHE folder beside the program when no cache dir is set
+  - do not crash on a disabled text input
+  - free the right line when closing a bookmark group
+  - add an element test suite under html/test
+  - add an FPU free 68030 build: highwire.030 runs on any 030, and
+    highwire.03F is the faster build for one with a 68882 fitted
+  - drop the beta tag, and keep the version in one place: version.h
+
 Changes in V. 0.3.5
 
  beta 7
