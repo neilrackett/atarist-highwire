@@ -3183,7 +3183,10 @@ render_H_tag (PARSER parser, short step, UWORD flags)
 	if (flags & PF_START) {
 		/* Prevent a heading paragraph just behind a <LI> tag. */
 		if (!current->lst_stack || !current->lst_stack->ListItem ||
-		    current->lst_stack->ListItem->item->next_word->next_word->next_word) {
+		    (current->lst_stack->ListItem->item &&
+		     current->lst_stack->ListItem->item->next_word &&
+		     current->lst_stack->ListItem->item->next_word->next_word &&
+		     current->lst_stack->ListItem->item->next_word->next_word->next_word)) {
 			par = add_paragraph (current, 2);
 			if (current->parentbox->BoxClass == BC_LIST) {
 				par->Box.Margin.Lft = current->lst_stack->Hanging;
@@ -3372,7 +3375,10 @@ render_P_tag (PARSER parser, const char ** text, UWORD flags)
 		 * however I haven't been able to find one
 		 */
 		if (!current->lst_stack || !current->lst_stack->ListItem ||
-		    current->lst_stack->ListItem->item->next_word->next_word->next_word) {
+		    (current->lst_stack->ListItem->item &&
+		     current->lst_stack->ListItem->item->next_word &&
+		     current->lst_stack->ListItem->item->next_word->next_word &&
+		     current->lst_stack->ListItem->item->next_word->next_word->next_word)) {
 				vspace = 2;
 		}
 		par = add_paragraph (current, vspace);
