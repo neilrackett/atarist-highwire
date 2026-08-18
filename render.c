@@ -3646,9 +3646,9 @@ list_bullet (PARSER parser, BULLET dflt)
 		case 'i': bullet = LT_L_ROMAN; break;
 		case 'I': bullet = LT_U_ROMAN; break;
 		case '1': bullet = LT_DECIMAL; break;
-		case 'D': bullet = LT_DISC;   break;
-		case 'S': bullet = LT_SQUARE; break;
-		case 'C': bullet = LT_CIRCLE; break;
+		case 'd': case 'D': bullet = LT_DISC;   break;
+		case 's': case 'S': bullet = LT_SQUARE; break;
+		case 'c': case 'C': bullet = LT_CIRCLE; break;
 		default:  bullet = dflt;
 	}
 
