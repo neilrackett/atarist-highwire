@@ -254,6 +254,24 @@ font_byType (WORD type, WORD style, WORD points, WORDITEM word)
 		}
 		hw_vqt_advance (vdi_handle, base->SpaceCode, &font->SpaceWidth, u,u,u);
 		font->SpaceWidth++;
+		/* Measuring a word costs a vqt_extent() call, which is most of the
+		 * time spent parsing text on the ROM VDI.  A fixed width face makes
+		 * that arithmetic instead, so find out once per face whether it is
+		 * one: a narrow glyph, a wide one and the space must all advance the
+		 * same before we believe it.  Faces the ROM VDI bolds or slants
+		 * algorithmically are left to vqt_extent(): what it reports and what
+		 * vqt_width() reports disagree there, and the widths are patched up
+		 * afterwards anyway.
+		 */
+		{
+			WORD narrow_adv, wide_adv;
+			hw_vqt_advance (vdi_handle, 'i', &narrow_adv, u,u,u);
+			hw_vqt_advance (vdi_handle, 'W', &wide_adv,   u,u,u);
+			font->FixedWidth = (narrow_adv == wide_adv
+			                    && narrow_adv == font->SpaceWidth -1
+			                    && !font->EffWidth && !font->EffSkew
+			                    ? narrow_adv : 0);
+		}
 		
 	} else {
 		if (font_switch (font, prev)) {
