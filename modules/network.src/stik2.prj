@@ -8,7 +8,7 @@
 
 pcstart.o          ; startup code
 
-stik2.c (network.c, ..\..\ovl_sys.h, ..\..\hw-types.h,..\..\inet.c,..\..\inet.h)
+stik2.c (network.c, ..\..\src\ovl_sys.h, ..\..\src\hw-types.h,..\..\src\inet.c,..\..\src\inet.h)
 
 pcstdlib.lib       ; standard library
 pcextlib.lib       ; extended library

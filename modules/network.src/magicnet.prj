@@ -9,7 +9,7 @@
 
 socklib\crt0.o          ; startup code
 
-magicnet.c (network.c,..\..\ovl_sys.h, ..\..\hw-types.h,..\..\inet.c,..\..\inet.h)
+magicnet.c (network.c,..\..\src\ovl_sys.h, ..\..\src\hw-types.h,..\..\src\inet.c,..\..\src\inet.h)
 
 socklib\mintlib.lib        ; TOS library
 socklib\socklib.lib

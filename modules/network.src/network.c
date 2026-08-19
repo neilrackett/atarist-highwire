@@ -14,11 +14,11 @@
 
 #define OVL_MODULE
 
-#include "../../hw-types.h"
-#include "../../ovl_sys.h"
+#include "../../src/hw-types.h"
+#include "../../src/ovl_sys.h"
 
-#include "../../inet.h"
-#include "../../inet.c"
+#include "../../src/inet.h"
+#include "../../src/inet.c"
 
 
 #if defined(USE_MINT) || defined(USE_MAGICNET)

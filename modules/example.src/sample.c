@@ -23,8 +23,8 @@
  */
 #define OVL_MODULE
 
-#include "../../hw-types.h"
-#include "../../ovl_sys.h"
+#include "../../src/hw-types.h"
+#include "../../src/ovl_sys.h"
 
 
 /* structs in use to hold OVL values*/
