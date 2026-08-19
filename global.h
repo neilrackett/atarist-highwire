@@ -173,6 +173,8 @@ extern BOOL         cfg_UseCSS;
 extern BOOL         cfg_HotlistOpen;
 extern BOOL         cfg_AVWindow;    /* AVSERVER window enables AV-drag&drop */
 extern BOOL         cfg_GlobalCycle; /* global window cycling by AV_SENDKEY  */
+extern ULONG        cfg_MaxDocument; /* bytes of markup to parse, 0 = no cap */
+extern UWORD        cfg_MaxImages;   /* inline images per page, 0 = no cap   */
 extern WORD         cfg_ConnTout;    /* seconds for connection establishing  */
 extern WORD         cfg_ConnRetry;   /* number of tries for connection that  *
                                       * couldn't get established immediately */
@@ -202,6 +204,11 @@ void init_paths(void);
 void launch_viewer (const char *name);
 
 /* in render.c */
+
+extern BOOL hw_LowMemory; /* an allocation on the parse path failed; the parse
+                           * loop stops at the next tag so the page ends early
+                           * instead of the session ending */
+void     hw_lowmemory    (void);
 
 FNTSTACK css_text_styles (PARSER, FNTSTACK);
 void     css_box_styles  (PARSER, DOMBOX *, H_ALIGN);
@@ -260,6 +267,7 @@ IMAGE new_image    (FRAME, TEXTBUFF, const char * src, LOCATION,
 void  delete_image (IMAGE*);
 void         image_calculate (IMAGE, short par_width);
 const char * image_dispinfo  (void);
+void         image_AspectRatio (WORD * wpx, WORD * hpx);
 void         reload_image (IMAGE*);
 
 /* in W_Struct.c */

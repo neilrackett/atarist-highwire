@@ -1,8 +1,26 @@
+Changes in V. 0.4.1
+
+  - route https through a proxy, and tell it the screen's colours and
+    pixel shape
+  - say what we accept, and what we are, in the request headers
+  - work the document and image caps out from the memory the machine
+    has, and stop the page rather than the session when it runs out
+  - time decode, reflow and redraw apart, and let the log go to a file
+  - send exactly as many bytes of a POST as Content-length promises
+  - do not crash on a paragraph or heading inside a short list item
+    (Christian Zietz)
+  - find our own cached image rather than whichever was most recent
+  - measure words by arithmetic where every glyph is the same width
+  - skip the palette search when nothing reads its answer
+
 Changes in V. 0.4.0
 
  The 0.4 series is the first that does not need GDOS.  The ROM VDI is a
  supported configuration rather than something to fall back to, and ST
  low and medium resolution are first class targets.
+
+ From 0.4.0 on, HighWire is maintained by Neil Rackett at
+ github.com/neilrackett/atarist-highwire.
 
   - run on the plain ROM VDI instead of refusing to start, using the
     resolution's own system font for the window furniture

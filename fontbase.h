@@ -31,6 +31,7 @@ struct s_font {
 	WORD     Ascend;
 	WORD     Descend;
 	WORD     Leading;   /* extra line spacing for leading-less bitmap cells */
+	WORD     FixedWidth; /* glyph advance if every glyph shares one, else 0 */
 	WORD     EffWidth;  /* extra width vst_effects adds per character ... */
 	WORD     EffSkew;   /* ... and once per string, missing from extents */
 	LONG     Condensed;

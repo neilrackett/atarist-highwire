@@ -18,6 +18,27 @@
  */
 BOOL logging_is_on = FALSE;
 
+/* Set by LOG_FILE.  The console is the screen on real hardware, so a run that
+ * needs reading afterwards -- or that ends in a crash -- has nowhere to go
+ * otherwise.  Colour escapes are left out of the file: they are VT52, and in a
+ * text file they are just noise.
+ */
+static FILE * log_file = NULL;
+
+void log_setfile (const char * path)
+{
+	if (log_file) {
+		fclose (log_file);
+		log_file = NULL;
+	}
+	if (path && *path && (log_file = fopen (path, "w")) != NULL) {
+		/* unbuffered: the interesting runs are the ones that end in a crash,
+		 * and a buffer would take the last lines down with it */
+		setvbuf (log_file, NULL, _IONBF, 0);
+		logging_is_on = TRUE;
+	}
+}
+
 
 void init_logging(void)
 {
@@ -44,6 +65,13 @@ void errprintf(const char *s, ...)
 	 */
 	if (!logging_is_on) return;
 
+	if (log_file) {
+		va_start(arglist, s);
+		fputs("HighWire: ", log_file);
+		vfprintf(log_file, s, arglist);
+		va_end(arglist);
+		return;
+	}
 	if (!ignore_colours)
 		fprintf(stderr, "\33c7\33b1HighWire: ");  /* print error line in red */
 	else
@@ -65,6 +93,13 @@ void logprintf(const short color, const char *s, ...)
 	va_list arglist;
 
 	if (logging_is_on) {
+		if (log_file) {
+			va_start(arglist, s);
+			fputs("HighWire: ", log_file);
+			vfprintf(log_file, s, arglist);
+			va_end(arglist);
+			return;
+		}
 		if (!ignore_colours)
 			/* print "HighWire:" in blue, the rest in 'color' */
 			fprintf(stdout, "\33c7\33b4HighWire:\33b%c ", (int)color);

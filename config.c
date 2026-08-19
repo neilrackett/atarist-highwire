@@ -9,6 +9,7 @@
 #include "version.h"
 #include "file_sys.h"
 #include "global.h"
+#include "Logging.h"
 #include "Location.h"
 #include "mime.h"
 #include "http.h"
@@ -36,6 +37,8 @@ BOOL         cfg_AVWindow     = FALSE;
 BOOL         cfg_GlobalCycle  = FALSE;
 WORD         cfg_ConnTout     = 1;
 WORD         cfg_ConnRetry    = 3;
+ULONG        cfg_MaxDocument  = 128uL * 1024uL;
+UWORD        cfg_MaxImages    = 0;
 
 static const char * cfg_magic = _HIGHWIRE_VERSION_ " [" __DATE__ "]";
 
@@ -120,6 +123,43 @@ dflt_cachedir (void)
 		strcpy (prog_dir (buf), "CACHE");
 		(void)Dcreate (buf); /* may exist already, cache_build() sorts it out */
 		cache_setup (buf, 0, 0, 0);
+	}
+}
+
+
+/*----------------------------------------------------------------------------*/
+/* A fixed document cap suits exactly one size of machine.  Take it from the
+ * memory actually there instead: measured, a 4MB ST parses 128k of markup and
+ * runs out on 192k, and Malloc() reports about 3MB free at this point on that
+ * machine -- so a twenty-fourth of what is free is what the DOM built from it
+ * can stand.  Checked against 2, 4, 8 and 14MB: the 4MB case lands on 129k,
+ * which is the size measured to work there, and none of them fall over.
+ *
+ * The ratio is what matters rather than the machine: it leaves a floppy-only
+ * STE something it can survive and gives a TT or Falcon one worth having.
+ *
+ * Capped at 512k because past that the limit stops being memory and becomes
+ * time -- parsing is worse than linear -- and nobody should meet a five minute
+ * page by default.  MAX_DOCUMENT is read afterwards and overrides all of this,
+ * including back to 0 for no cap at all.
+*/
+static void
+dflt_maxdocument (void)
+{
+	long avail;
+
+	/* A TT or Falcon keeps most of its memory in TT ram, so ask for that
+	 * where the system knows what it is -- the same test main() uses. */
+	if (Sysconf (-1) != -EINVFN) {
+		avail = (long)Mxalloc (-1L, 3 /* prefer TT ram */);
+	} else {
+		avail = (long)Malloc (-1L);
+	}
+	if (avail > 0) {
+		avail /= 24;
+		if      (avail <   8L *1024) avail =   8L *1024;
+		else if (avail > 512L *1024) avail = 512L *1024;
+		cfg_MaxDocument = (ULONG)avail;
 	}
 }
 
@@ -530,6 +570,35 @@ cfg_http_proxy (char * param, long arg)
 
 /*----------------------------------------------------------------------------*/
 static void
+cfg_logfile (char * param, long arg)
+{
+	(void)arg;
+	log_setfile (param);
+}
+
+
+/*----------------------------------------------------------------------------*/
+static void
+cfg_max_doc (char * param, long arg)
+{
+	long n = atol (param);
+	(void)arg;
+	if (n >= 0) cfg_MaxDocument = (ULONG)n * 1024uL;  /* 0 disables the cap */
+}
+
+
+/*----------------------------------------------------------------------------*/
+static void
+cfg_max_img (char * param, long arg)
+{
+	long n = atol (param);
+	(void)arg;
+	if (n >= 0 && n <= 0xFFFF) cfg_MaxImages = (UWORD)n;  /* 0 disables it */
+}
+
+
+/*----------------------------------------------------------------------------*/
+static void
 cfg_urlhist (char * param, long arg)
 {
 	(void)arg;
@@ -617,8 +686,11 @@ read_config(void)
 	static long backgnd = -1;
 	
 	char l[HW_PATH_MAX], * p, * d;
-	FILE   * fp = open_cfg ("r");
-	
+	FILE   * fp;
+
+	dflt_maxdocument(); /* before the file is read, so MAX_DOCUMENT wins */
+	fp = open_cfg ("r");
+
 	if (!fp) {
 		save_config (NULL, NULL);
 		dflt_cachedir();
@@ -690,6 +762,9 @@ read_config(void)
 				{ "LINE_SPACING",         cfg_linespc,   0 },
 				{ "LOCAL_WEB",            cfg_localweb,  0 },
 				{ "LOGGING",              cfg_Func,      (long)menu_logging     },
+				{ "LOG_FILE",             cfg_logfile,   0 },
+				{ "MAX_DOCUMENT",         cfg_max_doc,   0 },
+				{ "MAX_IMAGES",           cfg_max_img,   0 },
 				{ "NORMAL",               cfg_font,      FA(normal_font, 0, 0)  },
 				{ "NO_IMAGE",             cfg_BOOL,      (long)&cfg_DropImages  },
 				{ "RESTRICT_HOST",        cfg_restrict,  0 },

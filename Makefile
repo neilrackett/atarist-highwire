@@ -89,17 +89,24 @@ else
 	OBJDIR = obj$(CPU:68%=.%)
 endif
 
+# Dependency files record which OBJDIR they belong to, so they have to live
+# per CPU target too.  Shared, they would silently stop applying as soon as
+# you built for a second CPU, and a header change would then be missed.
+DEPDIR = $(OBJDIR)/.deps
+
 all: $(TARGET)
 
 #
 # C source files
 #
-$(OBJDIR)/%.o: %.c
+# Makefile is a prerequisite so that changing the flags, the CPU mapping or the
+# dependency layout rebuilds rather than quietly reusing stale objects.
+$(OBJDIR)/%.o: %.c Makefile
 	@echo "$(CC) $(CFLAGS) -c $< -o $@"; \
-	$(CC) -Wp,-MMD,.deps/$(<:.c=.P_) $(CFLAGS) -c $< -o $@
-	@cat .deps/$(<:.c=.P_) \
-	    | sed "s,^\(.*\)\.o:,$(OBJDIR)/\1.o:," > .deps/$(<:.c=.P)
-	@rm -f .deps/$(<:.c=.P_)
+	$(CC) -Wp,-MMD,$(DEPDIR)/$(<:.c=.P_) $(CFLAGS) -c $< -o $@
+	@sed "1s,^[^:]*:,$(OBJDIR)/$(<:.c=.o):," \
+	     $(DEPDIR)/$(<:.c=.P_) > $(DEPDIR)/$(<:.c=.P)
+	@rm -f $(DEPDIR)/$(<:.c=.P_)
 
 #
 # files
@@ -165,7 +172,7 @@ SFILES =
 OBJS = $(SFILES:%.s=$(OBJDIR)/%.o) $(CFILES:%.c=$(OBJDIR)/%.o)
 OBJS_MAGIC := $(shell mkdir ./$(OBJDIR) > /dev/null 2>&1 || :)
 
-DEPENDENCIES = $(addprefix ./.deps/, $(patsubst %.c,%.P,$(CFILES)))
+DEPENDENCIES = $(addprefix ./$(DEPDIR)/, $(patsubst %.c,%.P,$(CFILES)))
 
 
 $(TARGET): $(OBJS)
@@ -231,6 +238,6 @@ dist::
 #
 # dependencies
 #
-DEPS_MAGIC := $(shell mkdir ./.deps > /dev/null 2>&1 || :)
+DEPS_MAGIC := $(shell mkdir -p ./$(DEPDIR) > /dev/null 2>&1 || :)
 
 -include $(DEPENDENCIES)

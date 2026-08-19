@@ -61,6 +61,7 @@ new_frame (LOCATION loc, TEXTBUFF current,
 	frame->clip.g_w = 0;
 	frame->clip.g_h = 0;
 	frame->first_named_location = NULL;
+	frame->ImgCount             = 0;
 	frame->MapList              = NULL;
 	frame->FormList             = NULL;
 	

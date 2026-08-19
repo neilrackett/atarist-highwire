@@ -1567,6 +1567,14 @@ cnvpal_1_2 (IMGINFO info, ULONG backgnd)
 	} while (--n);
 }
 
+/* Whether the rasteriser sharing this palette actually reads the mapped screen
+ * index cnvpal_4_8() writes into the top byte.  raster_I4() dithers from the
+ * palette's own RGB and never looks at it, and finding it costs a nearest
+ * colour search for every entry -- about a quarter of a second on a 256 colour
+ * image.  The others (I8, P8 and the standard bitmap) do read it.
+ */
+static BOOL cnvpal_mapped = TRUE;
+
 /*----------------------------------------------------------------------------*/
 static void
 cnvpal_4_8 (IMGINFO info, ULONG backgnd)
@@ -1583,7 +1591,9 @@ cnvpal_4_8 (IMGINFO info, ULONG backgnd)
 			*(pal++) = color_lookup ((WORD)backgnd) | ((long)pixel_val[backgnd] <<24);
 		} else {
 			ULONG rgb = ((((long)*r <<8) | *g) <<8) | *b;
-			*(pal++)  = rgb | ((long)pixel_val[remap_color (rgb)] <<24);
+			*(pal++)  = (cnvpal_mapped
+			             ? rgb | ((long)pixel_val[remap_color (rgb)] <<24)
+			             : rgb);
 		}
 		r += info->PalStep;
 		g += info->PalStep;
@@ -1814,6 +1824,7 @@ rasterizer (UWORD depth, UWORD comps)
 			raster_true       = dither_stnd;
 			raster.StndBitmap = TRUE;
 		}
+		cnvpal_mapped = (raster_cmap != raster_I4);
 		if (sdepth == 4 || sdepth == 8) {
 			color_tables (cube216, graymap, pixel_val);
 		}

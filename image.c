@@ -3,7 +3,12 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h> /* memcpy() */
+#include <time.h>
 #include <gemx.h>
+
+#ifndef CLK_TCK
+#   define CLK_TCK     CLOCKS_PER_SEC
+#endif
 
 #ifdef __PUREC__
 # define CONTAINR struct s_containr *
@@ -65,35 +70,66 @@ squash (short v, ULONG ffx)
 	return (v > 0 ? v : 1);
 }
 
+/* Screen shape and squash factor are constant, so decide them once. */
+static WORD  aspect_axis = -1;
+static ULONG aspect_ffx;
+
+static void
+aspect_setup (void)
+{
+	if (aspect_axis < 0) {
+		WORD wp = vdi_dev.wpixel;
+		WORD hp = vdi_dev.hpixel;
+		aspect_axis = 0;
+		if (cfg_ImgAspect && wp > 0 && hp > 0) {
+			if (hp >= wp + wp /2) {
+				aspect_axis = 'h';
+				aspect_ffx  = (((ULONG)wp <<16) + hp /2) / hp;
+			} else if (wp >= hp + hp /2) {
+				aspect_axis = 'w';
+				aspect_ffx  = (((ULONG)hp <<16) + wp /2) / wp;
+			}
+		}
+	}
+}
+
+/*============================================================================*/
+/* The shape of one screen pixel, for a transcoding proxy to size images with.
+ * Reports what we will really do, not what the hardware says: 1:1 whenever no
+ * correction would be applied, so the far end needs no policy of its own.
+ * Sharing aspect_setup() with aspect_adjust() keeps the two from drifting --
+ * a disagreement here would show up as subtly wrong geometry rather than as a
+ * failure.
+*/
+void
+image_AspectRatio (WORD * wpx, WORD * hpx)
+{
+	aspect_setup();
+
+	if (aspect_axis) {
+		*wpx = vdi_dev.wpixel;
+		*hpx = vdi_dev.hpixel;
+	} else {
+		*wpx = *hpx = 1;
+	}
+}
+
+
+/*----------------------------------------------------------------------------*/
 /* Where screen pixels are far from square, squash the display size's long
  * axis by the reported pixel size so pictures keep their real world aspect
  * ratio: the height on tall pixels (ST medium), the width on wide ones
- * (TT low).  Screen shape and factor are constant, so decide them once.
+ * (TT low).
  */
 static void
 aspect_adjust (IMAGE img)
 {
-	static WORD  axis = -1;
-	static ULONG ffx;
+	aspect_setup();
 
-	if (axis < 0) {
-		WORD wp = vdi_dev.wpixel;
-		WORD hp = vdi_dev.hpixel;
-		axis = 0;
-		if (cfg_ImgAspect && wp > 0 && hp > 0) {
-			if (hp >= wp + wp /2) {
-				axis = 'h';
-				ffx  = (((ULONG)wp <<16) + hp /2) / hp;
-			} else if (wp >= hp + hp /2) {
-				axis = 'w';
-				ffx  = (((ULONG)hp <<16) + wp /2) / wp;
-			}
-		}
-	}
-	if (axis == 'h') {
-		img->disp_h = squash (img->disp_h, ffx);
-	} else if (axis == 'w') {
-		img->disp_w = squash (img->disp_w, ffx);
+	if (aspect_axis == 'h') {
+		img->disp_h = squash (img->disp_h, aspect_ffx);
+	} else if (aspect_axis == 'w') {
+		img->disp_w = squash (img->disp_w, aspect_ffx);
 	}
 }
 
@@ -437,10 +473,18 @@ image_job (void * arg, long invalidated)
 	short  old_h = img->disp_h;
 	int  calc_xy = 0;
 	BOOL   fresh = FALSE;
-	
+
 	long   hash   = 0;
 	CACHED cached = NULL;
-	
+
+	/* Nobody currently knows whether an image costs its ~3 s in the decoder or
+	 * in the reflow it triggers, and the two want opposite fixes.  Time them
+	 * apart before optimising either. */
+	time_t t_decode = 0;
+	time_t t_calc   = 0;
+	time_t t_draw   = 0;
+	time_t t_mark;
+
 	if (invalidated) {
 		containr_notify (frame->Container, HW_ActivityEnd, NULL);
 		return FALSE;
@@ -454,12 +498,23 @@ image_job (void * arg, long invalidated)
 			cached = info.Object;
 		
 		} else if (res & CR_FOUND) {
-			ident = info.Ident;
-			if ((char)(ident >>24) == 0xFF) {
+			/* Entries are stored under the background the decoder settled on,
+			 * but we asked with the one the paragraph gave us, so CR_MATCH
+			 * cannot have fired.  Correct it and ask again rather than making
+			 * do with whatever the query happened to offer: it returns the
+			 * first entry for this location, which is the most recent, so a
+			 * second size of the same image would otherwise never match its
+			 * own entry and would be decoded again on every alternation.
+			*/
+			if ((char)(info.Ident >>24) == 0xFF) {
 				img->backgnd = -1;
 			}
-			if (ident == img_hash (img->disp_w, img->disp_h, img->backgnd)) {
-				cached = info.Object;
+			ident = img_hash (img->disp_w, img->disp_h, img->backgnd);
+			if (ident == info.Ident) {
+				cached = info.Object;      /* the correction was enough */
+
+			} else if ((res = cache_query (loc, ident, &info)) & CR_MATCH) {
+				cached = info.Object;      /* our own entry was further down */
 			}
 		}
 		if (!cached) {
@@ -491,7 +546,8 @@ image_job (void * arg, long invalidated)
 		IMGINFO  info;
 		
 		containr_notify (frame->Container, HW_ImgBegLoad, img->source->FullName);
-		
+
+		t_mark = clock();
 		if ((info = get_decoder (loc->FullName)) != NULL) {
 			if ((data = setup (img, info))        != NULL) {
 				read_img (img, info, data);
@@ -501,6 +557,7 @@ image_job (void * arg, long invalidated)
 			if (info->DthBuf) free (info->DthBuf);
 			free (info);
 		}
+		t_decode = clock() - t_mark;
 		if (data) {
 			long ident = (fresh ? img_hash (data->img_w, data->img_h, 0) : 0);
 			if (data->fd_stand) {
@@ -535,12 +592,14 @@ image_job (void * arg, long invalidated)
 		long off_y = img->offset.Y;
 		long par_w = par->Box.Rect.W;
 		long par_h = par->Box.Rect.H;
+		BOOL recalc;
 		if (par->Box.MinWidth < img->disp_w) {
 			 par->Box.MinWidth = img->disp_w;
 			 par->Box.MaxWidth = 0;
 		}
+		t_mark = clock();
 		dombox_MinWidth (&frame->Page);
-		
+
 #if 0
 		if (containr_calculate (frame->Container, NULL)) {
 			calc_xy = 0;
@@ -552,8 +611,10 @@ image_job (void * arg, long invalidated)
 			calc_xy = -1;
 #endif
 
-		if (containr_calculate (frame->Container, NULL)
-		    && par_w == par->Box.Rect.W) {
+		recalc = containr_calculate (frame->Container, NULL);
+		t_calc = clock() - t_mark;
+
+		if (recalc && par_w == par->Box.Rect.W) {
 			long x, y;
 			dombox_Offset (img->offset.Origin, &x, &y);
 			x += frame->clip.g_x - frame->h_bar.scroll;
@@ -591,13 +652,31 @@ image_job (void * arg, long invalidated)
 		rec.g_y = y;
 	}
 	
+	/* Both of these redraw synchronously -- window_redraw() walks the AES
+	 * rectangle list and calls the draw function itself -- so the dither and
+	 * blit land here rather than back in the event loop.  Timed because
+	 * decode and reflow together do not account for the time between one
+	 * image arriving and the next being asked for. */
+	t_mark = clock();
 	if (!cached) {
 		containr_notify (frame->Container, HW_ImgEndLoad, clip);
 	} else if (img->u.Data) {
 		containr_notify (frame->Container, HW_PageUpdated, clip);
 	}
+	t_draw = clock() - t_mark;
+
 	containr_notify (frame->Container, HW_ActivityEnd, NULL);
-	
+
+	if (logging_is_on && (t_decode || t_calc || t_draw)) {
+		logprintf (LOG_BLUE,
+		           "img %ldms decode + %ldms reflow + %ldms draw  %dx%d %s'%s'\n",
+		           (long)t_decode * 1000 / CLK_TCK,
+		           (long)t_calc   * 1000 / CLK_TCK,
+		           (long)t_draw   * 1000 / CLK_TCK,
+		           img->disp_w, img->disp_h,
+		           (cached ? "cached " : ""), img->source->File);
+	}
+
 	return FALSE;
 }
 

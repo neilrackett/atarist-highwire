@@ -34,6 +34,13 @@ hhtp_proxy (const char * host, short port)
 	proxy = new_location (buf, NULL);
 }
 
+/*============================================================================*/
+BOOL
+http_hasProxy (void)
+{
+	return (proxy != NULL);
+}
+
 
 /*============================================================================*/
 long
@@ -470,11 +477,11 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 		char       * p    = strchr (strcpy (buffer, meth), '\0');
 		size_t       len;
 		if (proxy) {
-			const char text[] = "http://";
-			UWORD      hlen;
+			UWORD hlen;
 			name = location_Host (loc, &hlen);
-			strcpy (p, text);
-			p   += sizeof(text) -1;
+			p    = strchr (strcpy (p, (loc->Proto == PROT_HTTPS ? "https://"
+			                                                    : "http://")),
+			               '\0');
 			strcpy (p, name);
 			p   += hlen;
 		}
@@ -483,11 +490,52 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 		strcpy (p += len, rest);
 		if ((len = inet_send (sock, buffer, (p - buffer) + sizeof(rest)-1)) > 0) {
 			const char * stack = inet_info();
+			/* Screen geometry, so a transcoding proxy can size images for the
+			 * display instead of guessing.  UA-pixels/UA-color are the old
+			 * MSIE headers rather than modern client hints: those are only
+			 * sent after a server advertises Accept-CH, and there is nothing
+			 * to negotiate with when the only reader is a proxy that already
+			 * knows.  Read per request, so changing resolution is picked up
+			 * without a restart. */
+			/* color_GreyRamp, not cfg_GreyPalette: the former is what the
+			 * screen really has, the latter only what was asked for */
+			const char * ua_col = (planes == 1     ? "mono"
+			                     : color_GreyRamp  ? "gray"
+			                                       : "color");
+			/* The shape of one pixel, so a proxy can hand us images already
+			 * corrected for a screen that is not square.  It reports what we
+			 * will really do, so 1:1 when we would leave the image alone --
+			 * the far end then needs no policy, just "if not 1:1, apply it". */
+			WORD ua_aspw, ua_asph;
+			/* Schemes we will send as absolute URIs on the request line and
+			 * expect routed; http is implied and not listed.  Separate from
+			 * UA-pixels on purpose: knowing our screen says nothing about
+			 * being able to route https, and a proxy that inferred one from
+			 * the other would leave https URLs unrewritten for a browser that
+			 * cannot fetch them.  True exactly when a proxy is configured,
+			 * which is the same condition proto_isFetchable() applies. */
+			const char * ua_fetch = (proxy ? "UA-fetch: https\r\n" : "");
+			image_AspectRatio (&ua_aspw, &ua_asph);
 			len = sprintf (buffer,
 			      "HOST: %s\r\n"
 			      "User-Agent: Mozilla 4.0 (compatible; Atari "
-			      _HIGHWIRE_FULLNAME_ "/" _HIGHWIRE_VERSION_ " %s)\r\n",
-			      name, (stack ? stack : ""));
+			      _HIGHWIRE_FULLNAME_ "/" _HIGHWIRE_VERSION_ " %s)\r\n"
+			      /* the q value matters: unweighted, the catch-all lets a
+			       * negotiating CDN answer with webp or avif, which we cannot
+			       * decode */
+			      "Accept: text/html,text/plain,image/gif,image/jpeg,image/png,"
+			              "*/*;q=0.5\r\n"
+			      /* the socket is handed on to read the body and then closed;
+			       * nothing here ever sends a second request down it, so say so
+			       * rather than leave an HTTP/1.1 peer holding it open */
+			      "Connection: close\r\n"
+			      "UA-pixels: %ix%i\r\n"
+			      "UA-color: %s%i\r\n"
+			      "UA-aspect: %i:%i\r\n"
+			      "%s",
+			      name, (stack ? stack : ""),
+			      vdi_dev.xres +1, vdi_dev.yres +1, ua_col, planes,
+			      ua_aspw, ua_asph, ua_fetch);
 			len = inet_send (sock, buffer, len);
 		}
 		if ((long)len > 0 && referer) {
@@ -540,7 +588,14 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 				len = inet_send (sock, post_buf->Buffer, n);
 			}
 		}
-		if ((long)len < 0 || (long)(len = inet_send (sock, "\r\n", 2)) < 0) {
+		/* The blank line that ends the headers.  A POST has already sent one
+		 * ahead of its body, and sending a second puts two bytes on the wire
+		 * past the Content-length we just promised.
+		*/
+		if ((long)len >= 0 && !post_buf) {
+			len = inet_send (sock, "\r\n", 2);
+		}
+		if ((long)len < 0) {
 			if ((long)len < -1) {
 				sprintf (buffer, "Error: %s\n", strerror(-(int)len));
 			} else {
@@ -652,7 +707,7 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 	
 	if (reply <= 0) {
 		strcpy (buffer, (reply == -ECONNRESET
-		                 ? "Connection reset by peer." : "Protocoll Error!\n"));
+		                 ? "Connection reset by peer." : "Protocol error!\n"));
 	}
 	if (hdr->SrvrDate <= 0) {
 		hdr->SrvrDate = (hdr->Modified > 0 ? hdr->Modified : hdr->LoclDate);

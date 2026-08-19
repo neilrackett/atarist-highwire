@@ -138,16 +138,30 @@ PARAGRPH
 new_paragraph (TEXTBUFF current)
 {
 	long * chk;
+	WORDITEM keep_word = current->word;
 	PARAGRPH paragraph = malloc (sizeof (struct paragraph_item));
 
+	if (!paragraph) {
+		hw_lowmemory();
+		return current->paragraph;  /* caller carries on with what it had */
+	}
 	current->styles.italic     = 0;
 	current->styles.bold       = 0;
 	current->styles.underlined = 0;
 	current->styles.strike     = 0;
-	
+
 	current->word = NULL;
-	
-	paragraph->item = new_word (current, FALSE);
+
+	if ((paragraph->item = new_word (current, FALSE)) == NULL) {
+		/* No word to hang it on.  Put back the one we just blanked -- a NULL
+		 * current->word is what reaches font_byType and takes the session
+		 * out -- and let the caller keep the paragraph it already had. */
+		hw_lowmemory();
+		free (paragraph);
+		current->word = keep_word;
+
+		return current->paragraph;
+	}
 	paragraph->Line = NULL;
 	
 	dombox_ctor (&paragraph->Box, current->parentbox, BC_TXTPAR);
@@ -211,11 +225,14 @@ add_paragraph (TEXTBUFF current, short vspace)
 		paragraph = current->paragraph; /* reuse empty paragraph */
 	}
 	
-	if (!paragraph) {
+	if (!paragraph
+	    && (paragraph = malloc (sizeof (struct paragraph_item))) == NULL) {
+		hw_lowmemory();     /* carry on in the paragraph we already have */
+		paragraph = current->paragraph;
+
+	} else if (paragraph != current->paragraph) {   /* i.e. freshly allocated */
 		PARAGRPH copy_from = current->paragraph;
-		
-		paragraph = malloc (sizeof (struct paragraph_item));
-		
+
 		copy_from->next_paragraph = paragraph;
 		current->prev_par         = copy_from;
 		current->paragraph        = paragraph;
@@ -375,7 +392,13 @@ vTab_format (DOMBOX * This, long width, BLOCKER blocker)
 		if (!word) break;
 
 		if ((line = *p_line) == NULL) {
-			*p_line = line = malloc (sizeof(struct word_line));
+			if ((*p_line = line = malloc (sizeof(struct word_line))) == NULL) {
+				/* Out of memory laying the paragraph out.  Stop here: the
+				 * lines built so far stay, the list is already terminated by
+				 * the NULL just stored, and the tail below skips itself. */
+				hw_lowmemory();
+				break;
+			}
 			line->NextLine = NULL;
 		}
 		p_line = &line->NextLine;

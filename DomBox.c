@@ -31,10 +31,13 @@ struct s_dombox_vtab DomBox_vTab = {
 DOMBOX *
 dombox_ctor (DOMBOX * This, DOMBOX * parent, BOXCLASS class)
 {
+	if (!This) {
+		return NULL;   /* out of memory: let the caller decide what to do */
+	}
 	memset (This, 0, sizeof (struct s_dombox));
 
 	This->_vtab = &DomBox_vTab;
-	
+
 	if (This == parent) {
 		errprintf ("dombox_ctor(): This and parent are equal!\n");
 		return This;

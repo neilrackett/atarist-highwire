@@ -1246,12 +1246,46 @@ group_box (PARSER parser, HTMLTAG tag, H_ALIGN align)
 
 
 /*============================================================================*/
+BOOL hw_LowMemory = FALSE;
+
+/* Somewhere for a box that could not be allocated to be written to.  It is
+ * never linked into the tree and never freed, so the handful of writes between
+ * the failure and the parse loop noticing are harmless. */
+static DOMBOX lowmem_scratch;
+
+void
+hw_lowmemory (void)
+{
+	if (!hw_LowMemory) {
+		hw_LowMemory = TRUE;
+		errprintf ("out of memory: the page will stop here.\n");
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+/* The class is not set: the scratch is never linked into the tree and never
+ * becomes anyone's parentbox, so nothing can ever read it back. */
+static DOMBOX *
+lowmem_box (void)
+{
+	hw_lowmemory();
+
+	return dombox_ctor (&lowmem_scratch, NULL, 0);
+}
+
+
+/*============================================================================*/
 DOMBOX *
 create_box (TEXTBUFF current, BOXCLASS bc, WORD par_top)
 {
 	DOMBOX * rparent = (DOMBOX *)&current->paragraph->Box;
 	DOMBOX * box = dombox_ctor (malloc (sizeof(DOMBOX)), current->parentbox, bc);
-	PARAGRPH par = add_paragraph (current, par_top);
+	PARAGRPH par;
+
+	if (!box) {
+		return lowmem_box();
+	}
+	par = add_paragraph (current, par_top);
 
 	box->real_parent = rparent;
 	box->Margin.Top = par->Box.Margin.Top;
@@ -2900,13 +2934,18 @@ render_IMG_tag (PARSER parser, const char ** text, UWORD flags)
 		char output[100];
 		char img_file[HW_PATH_MAX];
 	
-		if (cfg_DropImages) {
+		/* Past MAX_IMAGES fall back to the ALT text.  Each further image costs
+		 * a fetch, a decode and a dither, so a page carrying hundreds of them
+		 * is otherwise unreachable long before the last one arrives. */
+		if (cfg_DropImages
+		    || (cfg_MaxImages && frame->ImgCount >= cfg_MaxImages)) {
 			if (get_value (parser, KEY_ALT, output, sizeof(output))) {
 				scan_string_to_16bit (output, frame->Encoding, &current->text,
 				                      current->word->font->Base->Mapping);
 			}
 			return flags;
 		}
+		frame->ImgCount++;
 
 		if (floating != ALN_NO_FLT) {
 			H_ALIGN  align = current->paragraph->Box.TextAlign;
@@ -4465,6 +4504,9 @@ parse_html (void * arg, long invalidated)
 			if (tag && render[tag]) {
 				flags = (render[tag])(parser, &symbol, flags);
 			}
+			if (hw_LowMemory) {
+				break;   /* tested per tag: boxes are only made by tag handlers */
+			}
 			if (flags & PF_ENCDNG) {
 				encoder = encoder_word (frame->Encoding,
 				                        current->word->font->Base->Mapping);
@@ -4707,6 +4749,9 @@ render_hrule (TEXTBUFF current, H_ALIGN align, short w, short size, BOOL shade)
 	PARAGRPH par = add_paragraph(current, 0);
 	DOMBOX * box = dombox_ctor (malloc (sizeof (DOMBOX)),
 	                            current->parentbox, BC_SINGLE);
+	if (!box) {
+		return lowmem_box();
+	}
 	box->HtmlCode = TAG_HR;
 	box->HasBorder = TRUE;
 
