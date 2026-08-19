@@ -9,17 +9,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         cross_tool: [ "m68k-atari-mint" ]
     steps:
       - uses: actions/checkout@v4
-      - name: Install SSH keys
-        if: ${{ github.event_name == 'push' }}
-        env:
-          SSH_ID: ${{ secrets.SSH_ID_JOSKA }}
-        run: ./.scripts/install_ssh_id.sh
       - name: Setup environment
         env:
           CROSS_TOOL: ${{ matrix.cross_tool }}
@@ -31,9 +28,18 @@ jobs:
           ./.scripts/install-libs.sh libpng-1.6.34-mint-dev.tar.xz zlib-1.2.12-mint-20220914-dev.tar.xz giflib-5.1.4-mint-dev.tar.xz jpeg-8d-mint-dev.tar.xz
       - name: build
         run: ./.scripts/build.sh
-      - name: deploy
+      - name: package
         if: ${{ github.event_name == 'push' }}
-        env:
-          COMMITER_NAME: ${{ github.event.commits[0].author.name }}
-          COMMITER_EMAIL: ${{ github.event.commits[0].author.email }}
-        run: ./.scripts/deploy.sh
+        run: ./.scripts/package.sh
+      - name: publish snapshot
+        if: ${{ github.event_name == 'push' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest snapshot
+          body: |
+            Rolling snapshot of the latest commit on main.
+            Permanent link: https://github.com/${{ github.repository }}/releases/latest/download/highwire-latest.zip
+          files: |
+            ${{ env.DEPLOY_DIR }}/highwire-latest.zip
+            ${{ env.DEPLOY_DIR }}/highwire-${{ env.PROJECT_VERSION }}-${{ env.LONG_ID }}.zip
