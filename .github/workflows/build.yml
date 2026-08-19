@@ -42,7 +42,6 @@ jobs:
         with:
           tag_name: latest
           name: Latest snapshot
-          prerelease: true
           body: |
             Rolling snapshot of the latest commit on main.
             Permanent link: https://github.com/${{ github.repository }}/releases/download/latest/highwire-latest.zip
