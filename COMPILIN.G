@@ -11,9 +11,9 @@ Which PRJ file do I use?
 using the following versions of C, this list will show what
 file to use when compiling.
 
-  PureC    ->  PUREWIRE.PRJ
+  PureC    ->  SRC\PUREWIRE.PRJ
 
-  LatticeC ->  HIGHWIRE.PRJ
+  LatticeC ->  SRC\HIGHWIRE.PRJ
 
   GCC      ->  makefile
 

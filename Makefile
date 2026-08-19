@@ -94,6 +94,10 @@ endif
 # you built for a second CPU, and a header change would then be missed.
 DEPDIR = $(OBJDIR)/.deps
 
+# The sources live in src/, so make looks for them there.  The file lists below
+# stay as bare names, which is also what the Pure C project files in src/ want.
+VPATH = src
+
 all: $(TARGET)
 
 #
@@ -103,10 +107,10 @@ all: $(TARGET)
 # dependency layout rebuilds rather than quietly reusing stale objects.
 $(OBJDIR)/%.o: %.c Makefile
 	@echo "$(CC) $(CFLAGS) -c $< -o $@"; \
-	$(CC) -Wp,-MMD,$(DEPDIR)/$(<:.c=.P_) $(CFLAGS) -c $< -o $@
-	@sed "1s,^[^:]*:,$(OBJDIR)/$(<:.c=.o):," \
-	     $(DEPDIR)/$(<:.c=.P_) > $(DEPDIR)/$(<:.c=.P)
-	@rm -f $(DEPDIR)/$(<:.c=.P_)
+	$(CC) -Wp,-MMD,$(DEPDIR)/$*.P_ $(CFLAGS) -c $< -o $@
+	@sed "1s,^[^:]*:,$@:," \
+	     $(DEPDIR)/$*.P_ > $(DEPDIR)/$*.P
+	@rm -f $(DEPDIR)/$*.P_
 
 #
 # files

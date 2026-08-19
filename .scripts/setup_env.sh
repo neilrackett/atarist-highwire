@@ -6,7 +6,7 @@ echo "PROJECT_REPO=${PROJECT_REPO}" >> $GITHUB_ENV
 PROJECT_NAME=$(echo "${GITHUB_REPOSITORY}" | cut -d '/' -f 2)
 echo "PROJECT_NAME=${PROJECT_NAME}" >> $GITHUB_ENV
 # get PROJECT_VERSION
-PROJECT_VERSION=`sed -n 's/.*_HIGHWIRE_VERSION_[\t ]*"\([^"]*\)"/\1/p' version.h`
+PROJECT_VERSION=`sed -n 's/.*_HIGHWIRE_VERSION_[\t ]*"\([^"]*\)"/\1/p' src/version.h`
 echo "PROJECT_VERSION=${PROJECT_VERSION}" >> $GITHUB_ENV
 INSTALL_DIR="/tmp/${PROJECT_NAME}"
 echo "INSTALL_DIR=${INSTALL_DIR}" >> $GITHUB_ENV
