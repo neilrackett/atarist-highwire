@@ -46,8 +46,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Latest snapshot
-          # No body here on purpose: the action overwrites the release notes with
-          # whatever it is given, so anything hand written on the release would be
-          # replaced by the next build.  Leaving it out keeps what is there.
+          # No name or body here on purpose: the action overwrites whatever it is
+          # given, so a hand written title or notes on the release would be reset
+          # by the next build.  Leaving them out keeps what is there.
           files: ${{ env.DEPLOY_DIR }}/*.zip
