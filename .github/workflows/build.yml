@@ -33,16 +33,21 @@ jobs:
         run: ./.scripts/package.sh
       - name: point the rolling tag at this build
         if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git tag -f latest "$GITHUB_SHA"
-          git push -f origin refs/tags/latest
+          # Pushing the tag with git is refused whenever the commit it points at
+          # touches .github/workflows, which the token may not write.  Moving the
+          # ref through the API asks for no such thing.
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" \
+            -f sha="$GITHUB_SHA" -F force=true --silent
       - name: publish snapshot
         if: ${{ github.event_name == 'push' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Latest snapshot
-          body: |
-            Rolling snapshot of the latest commit on main.
-            Permanent link: https://github.com/${{ github.repository }}/releases/download/latest/highwire-latest.zip
+          # No body here on purpose: the action overwrites the release notes with
+          # whatever it is given, so anything hand written on the release would be
+          # replaced by the next build.  Leaving it out keeps what is there.
           files: ${{ env.DEPLOY_DIR }}/*.zip
