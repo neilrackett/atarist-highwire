@@ -2,6 +2,7 @@
 *.app
 *.prg
 obj.*
+dist/
 *.bak
 *.orig
 *.o
