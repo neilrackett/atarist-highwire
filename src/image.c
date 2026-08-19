@@ -460,6 +460,86 @@ image_ldr (void * arg, long invalidated)
 	return FALSE;
 }
 
+/*------------------------------------------------------------------------------
+ * Deferred reflow.
+ *
+ * Every image that arrives with a size the layout did not expect used to
+ * recalculate the whole page there and then, which costs the same whether the
+ * picture is a banner or a 14 pixel bullet, and a page with sixty distinct
+ * pictures paid it sixty times.  Instead the request is parked here and one
+ * recalculation serves everything that arrived in the same burst: the job
+ * waits, cheaply, until no new request has come in for half a second (or two
+ * seconds after the first, so a steady trickle cannot starve it), then lays
+ * the page out once and redraws it.
+ *
+ * Only the recalculation is deferred.  Text renders as it always did, images
+ * whose size was already right still draw the moment they decode, and the
+ * scheduler keeps running, so the page stays live throughout.
+*/
+#define REFLOW_QUIET (CLK_TCK /2)   /* fire after this much calm...          */
+#define REFLOW_LIMIT (CLK_TCK *2)   /* ...but never wait longer than this    */
+
+static FRAME reflow_frame = NULL;   /* page with a recalculation pending     */
+static long  reflow_first = 0;      /* when the first request arrived        */
+static long  reflow_last  = 0;      /* when the latest one did               */
+static int   reflow_count = 0;
+
+static void
+reflow_run (FRAME frame)
+{
+	GRECT  rec  = frame->Container->Area;
+	time_t t    = clock();
+	int    n    = reflow_count;
+
+	reflow_frame = NULL;
+	reflow_count = 0;
+
+	dombox_MinWidth (&frame->Page);
+	containr_calculate (frame->Container, NULL);
+	containr_notify (frame->Container, HW_PageUpdated, &rec);
+
+	if (logging_is_on) {
+		logprintf (LOG_BLUE, "img reflow %ldms for %d images\n",
+		           (long)(clock() - t) * 1000 / CLK_TCK, n);
+	}
+}
+
+static int
+reflow_job (void * arg, long invalidated)
+{
+	FRAME frame = arg;
+
+	if (frame != reflow_frame) {
+		return FALSE;                /* flushed, or a stale entry             */
+	}
+	if (invalidated) {
+		reflow_frame = NULL;         /* the page is being torn down           */
+		reflow_count = 0;
+		return FALSE;
+	}
+	if (clock() - reflow_last  < REFLOW_QUIET &&
+	    clock() - reflow_first < REFLOW_LIMIT) {
+		return -2;                   /* JOB_NOOP: more may be about to arrive */
+	}
+	reflow_run (frame);
+	return FALSE;
+}
+
+static void
+reflow_defer (FRAME frame)
+{
+	if (reflow_frame != frame) {
+		if (reflow_frame) {          /* another page is waiting: settle it    */
+			reflow_run (reflow_frame);
+		}
+		reflow_frame = frame;
+		reflow_first = clock();
+		sched_insert (reflow_job, frame, (long)frame->Container, 1);
+	}
+	reflow_last = clock();
+	reflow_count++;
+}
+
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static int
 image_job (void * arg, long invalidated)
@@ -589,48 +669,17 @@ image_job (void * arg, long invalidated)
 	    || img->disp_w != old_w || img->disp_h != old_h) {
 /*		long par_x = par->Box.Rect.X;*/
 /*		long par_y = par->Box.Rect.Y;*/
-		long off_y = img->offset.Y;
-		long par_w = par->Box.Rect.W;
-		long par_h = par->Box.Rect.H;
-		BOOL recalc;
 		if (par->Box.MinWidth < img->disp_w) {
 			 par->Box.MinWidth = img->disp_w;
 			 par->Box.MaxWidth = 0;
 		}
-		t_mark = clock();
-		dombox_MinWidth (&frame->Page);
-
-#if 0
-		if (containr_calculate (frame->Container, NULL)) {
-			calc_xy = 0;
-		} else if (par_w == par->Box.Rect.W && par_h == par->Box.Rect.H) {
-			calc_xy = 1;
-			rec.g_w = par_w;
-			rec.g_h = par_h;
-		} else if (par_x == par->Box.Rect.X && par_y == par->Box.Rect.Y) {
-			calc_xy = -1;
-#endif
-
-		recalc = containr_calculate (frame->Container, NULL);
-		t_calc = clock() - t_mark;
-
-		if (recalc && par_w == par->Box.Rect.W) {
-			long x, y;
-			dombox_Offset (img->offset.Origin, &x, &y);
-			x += frame->clip.g_x - frame->h_bar.scroll;
-			y += frame->clip.g_y - frame->v_bar.scroll;
-			if (off_y == img->offset.Y) {
-				y    += off_y;
-			} else {
-				off_y = 0;
-			}
-			rec.g_y = (WORD)y;
-			if (par_h == par->Box.Rect.H) {
-				rec.g_x = (WORD)x;
-				rec.g_w = (WORD)par_w;
-				rec.g_h = (WORD)(par_h - off_y);
-			}
-		}
+		/* The layout this picture lands in is stale until the deferred
+		 * recalculation runs, so there is nowhere correct to draw it yet;
+		 * the batch redraw brings it in.  Everything else on the page keeps
+		 * drawing as normal in the meantime.
+		*/
+		reflow_defer (frame);
+		clip = NULL;
 	} else if (img->u.Data) {
 		calc_xy = 1;
 		rec.g_w = img->disp_w + img->hspace;
