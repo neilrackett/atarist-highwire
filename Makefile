@@ -220,6 +220,11 @@ dist::
 	cp -a modules/README.TXT modules/iconnect.ovl modules/magicnet.ovl modules/stik2.ovl modules/sting.ovl $(DISTDIR)/modules
 	mkdir -p $(DISTDIR)/example.cfg
 	cp -a example.cfg/highwire.cfg $(DISTDIR)/example.cfg
+#	Ready to run on the machine most people have, without renaming anything
+#	first: the 68000 build as HIGHWIRE.PRG, and STinG as the network module.
+#	Both are copies, so the other builds and stacks are still there to swap in.
+	cp -a $(DISTDIR)/highwire.000 $(DISTDIR)/highwire.prg
+	cp -a modules/sting.ovl $(DISTDIR)/modules/network.ovl
 	-unix2dos $(DISTDIR)/doc/HIGHWIRE.DOC $(DISTDIR)/doc/hotkeys.txt $(DISTDIR)/modules/README.TXT $(DISTDIR)/Change.Log $(DISTDIR)/example.cfg
 	(cwd=`pwd`; cd $(DISTDIR); zip -r "$$cwd"/hw`date +%y%m%d`.zip .)
 
