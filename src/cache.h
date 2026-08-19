@@ -60,6 +60,10 @@ typedef struct s_cache_info {
 
 CRESULT cache_query (LOCATION, long ident, CACHEINF);
 
+#ifdef CACHETEST
+void cache_selftest (void);
+#endif
+
 size_t  cache_info  (size_t * size, CACHEINF *);
 
 

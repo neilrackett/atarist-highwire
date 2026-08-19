@@ -1,10 +1,10 @@
 # <img src="html/images/logotst2.gif" alt="HighWire" />
 
-Web browser for the Atari ST, TT, Falcon and FireBee.
+Welcome to the home of the HighWire web browser for the Atari ST, TT, Falcon and FireBee.
 
-Runs on any ST compatible machine, no GDOS required, and renders using SpeedoGDOS, NVDI or fVDI if you have one.
+HighWire runs on any ST compatible machine, no GDOS required, and renders using SpeedoGDOS, NVDI or fVDI if you have one, but you'll need to install a TCP/IP stack (e.g. STinG, STiK2, MiNTnet) to get online.
 
-You'll need to install a TCP/IP stack (e.g. STinG, STiK2, MiNTnet) to get online.
+If your ST isn't already online, take a look at [MD/Net](https://downloads.neilrackett.com/md-net), which has everything you need to get up and running.
 
 [![Build Status](https://github.com/neilrackett/atarist-highwire/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/neilrackett/atarist-highwire/actions)
 
@@ -20,7 +20,7 @@ is still in the archive to swap in.
 
 **For a faster machine**, copy the build that suits it over `HIGHWIRE.PRG`:
 
-- `.000` — any 68000: ST, STE, Mega ST/STE *(what you get by default)*
+- `.000` — any 68000: ST, STE, Mega ST/STE _(what you get by default)_
 - `.030` — 68030: Falcon, TT (works with or without an FPU)
 - `.03F` — 68030 with a 68881/2 FPU fitted (same, but faster)
 - `.040` / `.060` — accelerated machines with FPU
