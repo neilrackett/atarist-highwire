@@ -6,7 +6,7 @@ Runs on any ST compatible machine, no GDOS required, and renders using SpeedoGDO
 
 You'll need to install a TCP/IP stack (e.g. STinG, STiK2, MiNTnet) to get online.
 
-[![Build Status](https://github.com/freemint/highwire/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/freemint/highwire/actions)
+[![Build Status](https://github.com/neilrackett/atarist-highwire/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/neilrackett/atarist-highwire/actions)
 
 ## Install
 
