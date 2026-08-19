@@ -4,6 +4,10 @@
 # names are fixed here rather than taken from $PROJECT_NAME: the readme links
 # to highwire-latest.zip, and a download URL resolves by asset name, so that
 # name must not follow a repository rename.
+#
+# The dated copy accumulates on the release, one per day -- a second build on
+# the same day replaces it.  The workflow uploads whatever lands here rather
+# than naming the files again, so the two cannot drift apart.
 
 BUILT="hw`date +%y%m%d`.zip"
 OUT="${DEPLOY_DIR:-/tmp/highwire-deploy}"
@@ -14,6 +18,6 @@ if [ ! -f "$BUILT" ]; then
 fi
 
 mkdir -p "$OUT"
-cp "$BUILT" "$OUT/highwire-${PROJECT_VERSION}-${LONG_ID}.zip"
+cp "$BUILT" "$OUT/highwire-${PROJECT_VERSION}-`date +%Y%m%d`.zip"
 cp "$BUILT" "$OUT/highwire-latest.zip"
 ls -l "$OUT"

@@ -45,6 +45,4 @@ jobs:
           body: |
             Rolling snapshot of the latest commit on main.
             Permanent link: https://github.com/${{ github.repository }}/releases/download/latest/highwire-latest.zip
-          files: |
-            ${{ env.DEPLOY_DIR }}/highwire-latest.zip
-            ${{ env.DEPLOY_DIR }}/highwire-${{ env.PROJECT_VERSION }}-${{ env.LONG_ID }}.zip
+          files: ${{ env.DEPLOY_DIR }}/*.zip
