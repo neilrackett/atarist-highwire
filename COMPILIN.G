@@ -17,6 +17,37 @@ file to use when compiling.
 
   GCC      ->  makefile
 
+   The Pure C and Lattice C routes are no longer maintained and
+nobody is known to build that way now.  Treat them as untested
+rather than broken: the project files still list every source, and
+they were kept in step when the sources moved into SRC, so they
+ought to work.
+
+Building with GCC
+
+   The simplest way is the Atari cross compiler in a container,
+which carries the m68k-atari-mint toolchain and the libraries, so
+nothing has to be installed on the host:
+
+  https://github.com/sidecartridge/atarist-toolkit-docker
+
+   It provides stcmd, which runs a command inside the container.
+From the top of the source tree:
+
+  stcmd make            the default, a 68040 build
+  stcmd make 000        68000: ST, STE, Mega ST and STE
+  stcmd make 030        68030 with no FPU: any Falcon or TT
+  stcmd make 03f        68030 with a 68881/2 fitted, and faster
+  stcmd make 040        68040
+  stcmd make 060        68060
+  stcmd make v4e        ColdFire, for the FireBee
+  stcmd make dist       every one of them, side by side
+
+   The dist target finishes by packaging what it built, which
+wants zip and unix2dos.  The container carries neither, so it
+stops once the builds and the overlays are in dist/, which is
+usually all that is wanted anyway.
+
 GEM Lib use
 
    Highwire has now been converted to using the GEM Lib as
