@@ -1,10 +1,9 @@
 #!/bin/sh -eu
 # Stage the archive that "make dist" just built under the names the release
-# carries.  Two of them: a versioned one so the release history is readable,
-# and a constant one so that
-#   .../releases/latest/download/highwire-latest.zip
-# keeps working -- that URL resolves by file name, so the name must not change
-# between releases.
+# carries.  The product is HighWire whatever the repository is called, so the
+# names are fixed here rather than taken from $PROJECT_NAME: the readme links
+# to highwire-latest.zip, and a download URL resolves by asset name, so that
+# name must not follow a repository rename.
 
 BUILT="hw`date +%y%m%d`.zip"
 OUT="${DEPLOY_DIR:-/tmp/highwire-deploy}"
@@ -15,6 +14,6 @@ if [ ! -f "$BUILT" ]; then
 fi
 
 mkdir -p "$OUT"
-cp "$BUILT" "$OUT/${PROJECT_NAME}-${PROJECT_VERSION}-${LONG_ID}.zip"
-cp "$BUILT" "$OUT/${PROJECT_NAME}-latest.zip"
+cp "$BUILT" "$OUT/highwire-${PROJECT_VERSION}-${LONG_ID}.zip"
+cp "$BUILT" "$OUT/highwire-latest.zip"
 ls -l "$OUT"

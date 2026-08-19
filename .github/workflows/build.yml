@@ -31,15 +31,21 @@ jobs:
       - name: package
         if: ${{ github.event_name == 'push' }}
         run: ./.scripts/package.sh
+      - name: point the rolling tag at this build
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          git tag -f latest "$GITHUB_SHA"
+          git push -f origin refs/tags/latest
       - name: publish snapshot
         if: ${{ github.event_name == 'push' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
           name: Latest snapshot
+          prerelease: true
           body: |
             Rolling snapshot of the latest commit on main.
-            Permanent link: https://github.com/${{ github.repository }}/releases/latest/download/highwire-latest.zip
+            Permanent link: https://github.com/${{ github.repository }}/releases/download/latest/highwire-latest.zip
           files: |
             ${{ env.DEPLOY_DIR }}/highwire-latest.zip
             ${{ env.DEPLOY_DIR }}/highwire-${{ env.PROJECT_VERSION }}-${{ env.LONG_ID }}.zip

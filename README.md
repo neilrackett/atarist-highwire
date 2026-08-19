@@ -23,6 +23,6 @@ You'll need to install a TCP/IP stack (e.g. STinG, STiK2, MiNTnet) to get online
 
 ## Downloads
 
-- [Latest snapshot](https://github.com/neilrackett/atarist-highwire/releases/latest/download/highwire-latest.zip)
+- [Latest snapshot](https://github.com/neilrackett/atarist-highwire/releases/download/latest/highwire-latest.zip)
 - [Earlier builds](https://github.com/neilrackett/atarist-highwire/releases)
 - [Snapshots before August 2026](https://atari.joska.no/snapshots/highwire/)
