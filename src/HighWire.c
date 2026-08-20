@@ -240,6 +240,12 @@ main (int argc, char **argv)
 	init_paths();
 	read_config();
 
+#ifdef REFLOWTEST
+	{	void image_reflow_selftest (void);
+		image_reflow_selftest();
+	}
+#endif
+
 #ifdef CACHETEST
 	cache_selftest();
 #endif

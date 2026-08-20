@@ -484,13 +484,32 @@ static long  reflow_first = 0;      /* when the first request arrived        */
 static long  reflow_last  = 0;      /* when the latest one did               */
 static int   reflow_count = 0;
 
+#ifdef REFLOWTEST
+static BOOL reflow_testing = FALSE;
+#endif
+
 static void
 reflow_run (FRAME frame)
 {
-	GRECT  rec  = frame->Container->Area;
-	time_t t    = clock();
+	GRECT  rec;
+	time_t t;
 	int    n    = reflow_count;
 
+#ifdef REFLOWTEST
+	if (reflow_testing) {
+		/* The layout half is proven by the pixel comparisons; here the frame
+		 * is a fake and only the timing is under test, so just say we fired.
+		*/
+		printf ("RT fire n=%d first+%ldms last+%ldms\n",
+		        n, (long)(clock() - reflow_first) * 1000 / CLK_TCK,
+		           (long)(clock() - reflow_last)  * 1000 / CLK_TCK);
+		reflow_frame = NULL;
+		reflow_count = 0;
+		return;
+	}
+#endif
+	rec = frame->Container->Area;
+	t   = clock();
 	reflow_frame = NULL;
 	reflow_count = 0;
 
@@ -539,6 +558,86 @@ reflow_defer (FRAME frame)
 	reflow_last = clock();
 	reflow_count++;
 }
+
+#ifdef REFLOWTEST
+/*============================================================================*/
+/* Drives the deferral with the arrival patterns the network produces and a
+ * local page cannot: bursts, a steady trickle, two pages at once, teardown.
+ * The job is polled directly, as the main loop's timer would, and the fake
+ * frames' queued jobs are removed afterwards so nothing fires later against
+ * a frame that never existed.
+*/
+static void
+rt_wait (long ticks)
+{
+	long t0 = clock();
+	while (clock() - t0 < ticks);
+}
+
+void image_reflow_selftest (void);
+
+void
+image_reflow_selftest (void)
+{
+	static struct frame_item fa, fb;
+	long t0;
+	int  r, i, fires;
+
+	fa.Container = (CONTAINR)&fa;
+	fb.Container = (CONTAINR)&fb;
+	reflow_testing = TRUE;
+	printf ("REFLOWTEST begin (quiet=%ldms limit=%ldms)\n",
+	        (long)REFLOW_QUIET * 1000 / CLK_TCK,
+	        (long)REFLOW_LIMIT * 1000 / CLK_TCK);
+
+	/* 1: a burst coalesces into one firing, after the quiet time */
+	for (i = 0; i < 5; i++) reflow_defer (&fa);
+	r = reflow_job (&fa, 0);
+	printf ("  burst: poll right away -> %d (want -2, still waiting)\n", r);
+	rt_wait (REFLOW_QUIET /2);
+	r = reflow_job (&fa, 0);
+	printf ("  burst: poll at quiet/2 -> %d (want -2)\n", r);
+	rt_wait (REFLOW_QUIET /2 + REFLOW_QUIET /8);
+	r = reflow_job (&fa, 0);
+	printf ("  burst: poll past quiet -> %d (want 0, fired above with n=5)\n", r);
+
+	/* 2: a steady trickle cannot starve it -- the cap forces a firing */
+	t0 = clock();
+	fires = 0;
+	for (i = 0; i < 8; i++) {
+		reflow_defer (&fa);
+		rt_wait (REFLOW_QUIET *3 /5);          /* under quiet: always "hot" */
+		if (reflow_job (&fa, 0) == 0) {
+			fires++;
+			printf ("  trickle: fired after %ldms of trickle\n",
+			        (long)(clock() - t0) * 1000 / CLK_TCK);
+		}
+	}
+	rt_wait (REFLOW_QUIET + REFLOW_QUIET /8);  /* let the tail settle */
+	if (reflow_count && reflow_job (&fa, 0) == 0) fires++;
+	printf ("  trickle: %d firings for 8 spaced images (want 2)\n", fires);
+
+	/* 3: a second page flushes the first at once */
+	reflow_defer (&fa);
+	reflow_defer (&fb);                        /* must fire fa immediately */
+	printf ("  flush: fa fired above with n=1; fb now pending: %s\n",
+	        (reflow_frame == &fb ? "yes" : "NO"));
+
+	/* 4: teardown cancels cleanly and the next page starts fresh */
+	r = reflow_job (&fb, (long)fb.Container);
+	printf ("  teardown: invalidated -> %d (want 0), pending cleared: %s\n",
+	        r, (reflow_frame == NULL ? "yes" : "NO"));
+	reflow_defer (&fa);
+	rt_wait (REFLOW_QUIET + REFLOW_QUIET /8);
+	r = reflow_job (&fa, 0);
+	printf ("  restart: poll past quiet -> %d (want 0, fired with n=1)\n", r);
+
+	sched_remove (reflow_job, &fa);
+	sched_remove (reflow_job, &fb);
+	reflow_testing = FALSE;
+	printf ("REFLOWTEST end\n");
+}
+#endif
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static int
