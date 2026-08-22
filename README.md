@@ -32,6 +32,6 @@ is still in the archive to swap in.
 
 ## Downloads
 
-- [Latest snapshot](https://github.com/neilrackett/atarist-highwire/releases/download/latest/highwire-latest.zip)
-- [Earlier builds](https://github.com/neilrackett/atarist-highwire/releases)
+- [Latest snapshot](https://downloads.neilrackett.com/atarist-highwire/highwire-latest.zip)
+- [Earlier builds](https://downloads.neilrackett.com/atarist-highwire)
 - [Snapshots before August 2026](https://atari.joska.no/snapshots/highwire/)
