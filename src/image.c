@@ -486,6 +486,7 @@ static int   reflow_count = 0;
 
 #ifdef REFLOWTEST
 static BOOL reflow_testing = FALSE;
+static int  rt_fires       = 0;
 #endif
 
 static void
@@ -500,6 +501,7 @@ reflow_run (FRAME frame)
 		/* The layout half is proven by the pixel comparisons; here the frame
 		 * is a fake and only the timing is under test, so just say we fired.
 		*/
+		rt_fires++;
 		printf ("RT fire n=%d first+%ldms last+%ldms\n",
 		        n, (long)(clock() - reflow_first) * 1000 / CLK_TCK,
 		           (long)(clock() - reflow_last)  * 1000 / CLK_TCK);
@@ -547,6 +549,15 @@ reflow_job (void * arg, long invalidated)
 static void
 reflow_defer (FRAME frame)
 {
+	if (reflow_frame == frame &&
+	    clock() - reflow_first > REFLOW_LIMIT) {
+		/* Overdue.  The parked job cannot be relied on to fire during a page
+		 * load, because the loader's jobs outrank it for as long as anything
+		 * is arriving; so the arrival that finds the batch overdue settles it
+		 * here, and the parked job is only the tail collector.
+		*/
+		reflow_run (frame);
+	}
 	if (reflow_frame != frame) {
 		if (reflow_frame) {          /* another page is waiting: settle it    */
 			reflow_run (reflow_frame);
@@ -601,21 +612,24 @@ image_reflow_selftest (void)
 	r = reflow_job (&fa, 0);
 	printf ("  burst: poll past quiet -> %d (want 0, fired above with n=5)\n", r);
 
-	/* 2: a steady trickle cannot starve it -- the cap forces a firing */
+	/* 2: a steady trickle cannot starve it, even unpolled.  On a real page
+	 * load the parked job is outranked by the loader's jobs the whole time,
+	 * so nothing polls it; the arrivals themselves must enforce the cap.
+	 * This is the pattern that bit on hardware: 177 images, one batch.
+	*/
 	t0 = clock();
-	fires = 0;
+	fires = rt_fires;
 	for (i = 0; i < 8; i++) {
 		reflow_defer (&fa);
 		rt_wait (REFLOW_QUIET *3 /5);          /* under quiet: always "hot" */
-		if (reflow_job (&fa, 0) == 0) {
-			fires++;
-			printf ("  trickle: fired after %ldms of trickle\n",
-			        (long)(clock() - t0) * 1000 / CLK_TCK);
-		}
 	}
-	rt_wait (REFLOW_QUIET + REFLOW_QUIET /8);  /* let the tail settle */
-	if (reflow_count && reflow_job (&fa, 0) == 0) fires++;
-	printf ("  trickle: %d firings for 8 spaced images (want 2)\n", fires);
+	if (reflow_count) {
+		rt_wait (REFLOW_QUIET + REFLOW_QUIET /8);
+		reflow_job (&fa, 0);                   /* the tail collector */
+	}
+	printf ("  trickle: %d firings for 8 unpolled images (want 2)\n",
+	        rt_fires - fires);
+	(void)t0;
 
 	/* 3: a second page flushes the first at once */
 	reflow_defer (&fa);
@@ -673,6 +687,11 @@ image_job (void * arg, long invalidated)
 		long    ident = (img->set_w <= 0 || img->set_h <= 0 ? 0
 		                 : img_hash (img->disp_w, img->disp_h, img->backgnd));
 		CRESULT res   = cache_query (loc, ident, &info);
+#ifdef CACHEDIAG
+		printf ("QRY %-14s set=%dx%d disp=%dx%d bg=%d ask=%08lx res=%02x got=%08lx\n",
+		        loc->File, img->set_w, img->set_h, img->disp_w, img->disp_h,
+		        img->backgnd, ident, (int)res, info.Ident);
+#endif
 		if (res & CR_MATCH) {
 			cached = info.Object;
 		
@@ -688,6 +707,17 @@ image_job (void * arg, long invalidated)
 			if ((char)(info.Ident >>24) == 0xFF) {
 				img->backgnd = -1;
 			}
+			if (!ident) {
+				/* Asked without a size, so disp_w/disp_h still hold the
+				 * placeholder and no key drawn from them can match.  Take the
+				 * size off the found copy exactly as image_calculate() does
+				 * during layout -- which is what used to repair this as a side
+				 * effect, back when every arriving image relaid the page out.
+				*/
+				cIMGDATA data = info.Object;
+				img_scale (img, data->img_w, data->img_h, NULL);
+				set_word (img);
+			}
 			ident = img_hash (img->disp_w, img->disp_h, img->backgnd);
 			if (ident == info.Ident) {
 				cached = info.Object;      /* the correction was enough */
@@ -695,6 +725,10 @@ image_job (void * arg, long invalidated)
 			} else if ((res = cache_query (loc, ident, &info)) & CR_MATCH) {
 				cached = info.Object;      /* our own entry was further down */
 			}
+#ifdef CACHEDIAG
+			printf ("  found: recomputed=%08lx stored=%08lx -> %s\n",
+			        ident, info.Ident, (cached ? "HIT" : "MISS"));
+#endif
 		}
 		if (!cached) {
 			if (res & CR_LOCAL) {
