@@ -1077,7 +1077,10 @@ header_job (void * arg, long invalidated)
 	*/
 	CACHE_ABORT(loc);
 	
-	loader->MimeType = MIME_TEXT;
+	/* The error texts carry markup for a small description under the title,
+	 * and anything without markup reads the same either way.
+	*/
+	loader->MimeType = MIME_TXT_HTML;
 	loader->Data     = strdup (hdr.Head);
 	
 	if (loader->SuccJob) {

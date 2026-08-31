@@ -70,8 +70,8 @@ static BOOL ovl_load(void)
 	           (*inet_ovl->ovl_init)() < INET_VERSION ||
 	           (ovl_ftab = (*inet_ovl->ovl_getftab)()) == NULL) {
 		errprintf ("inet::ovl_load(): wrong network.ovl!\n");
-		inet_ovl = NULL;
 		kill_ovl (inet_ovl);
+		inet_ovl = NULL;
 		return FALSE;    /* wrong OVL */
 	}
 	backup    = inet_ftab;
@@ -215,7 +215,11 @@ static BOOL init_stik (void)
 		}  * jar = (void*)Setexc (0x5A0 /4, (void (*)())-1);
 		long tag = 'STiK';
 	
-		while (jar->cktag) {
+		/* Plain TOS up to 1.04 has no cookie jar unless something in AUTO
+		 * made one, and then the pointer read above is NULL: walking it
+		 * took the whole browser down on the first http URL.
+		*/
+		if (jar) while (jar->cktag) {
 			if (jar->cktag == tag) {
 				DRV_LIST * drivers = (DRV_LIST*)jar->ckvalue;
 				if (strcmp (STIK_DRVR_MAGIC, drivers->magic) == 0) {

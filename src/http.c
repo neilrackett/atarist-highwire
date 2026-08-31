@@ -462,12 +462,27 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 	
 	} else if ((sock = proxy ? location_open (proxy, NULL)
 	                         : location_open (loc, &name)) < 0) {
+		UWORD hlen;
+		const char * host = location_Host ((proxy ? proxy : loc), &hlen);
 		if (sock == -ETIMEDOUT) {
-			strcpy (buffer, "Connection timeout!\n");
+			sprintf (buffer, "<b>Connection timeout</b><p><font size=\"2\">"
+			         "<i>%.*s</i> did not answer.  The machine may be down, "
+			         "or the way to it may not: if no site answers at all, "
+			         "check the TCP/IP stack's gateway and DNS settings."
+			         "</font>",
+			         (int)hlen, host);
 		} else if (sock < -1) {
-			sprintf (buffer, "Error: %s\n", strerror(-sock));
+			sprintf (buffer, "<b>Error: %s</b><p><font size=\"2\">"
+			         "Connecting to <i>%.*s</i> failed with the error above "
+			         "before anything was sent.</font>",
+			         strerror(-sock), (int)hlen, host);
 		} else {
-			strcpy (buffer, "No route to  host!\n");
+			sprintf (buffer, "<b>No route to host</b><p><font size=\"2\">"
+			         "<i>%.*s</i> could not be reached.  Usually this means "
+			         "the TCP/IP stack is not up, or its gateway or DNS "
+			         "server is not set: nothing of the internet can be seen "
+			         "from here.</font>",
+			         (int)hlen, host);
 		}
 		return sock;
 	
@@ -597,9 +612,14 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 		}
 		if ((long)len < 0) {
 			if ((long)len < -1) {
-				sprintf (buffer, "Error: %s\n", strerror(-(int)len));
+				sprintf (buffer, "<b>Error: %s</b><p><font size=\"2\">"
+				         "The connection was made, but sending the request "
+				         "failed with the error above.</font>",
+				         strerror(-(int)len));
 			} else {
-				strcpy (buffer, "Connection error!\n");
+				strcpy (buffer, "<b>Connection error</b><p><font size=\"2\">"
+				        "The connection was made, but broke while the "
+				        "request was being sent.</font>");
 			}
 			inet_close (sock);
 			
@@ -706,8 +726,22 @@ http_header (LOCATION loc, HTTP_HDR * hdr, size_t blk_size,
 	} while (left);
 	
 	if (reply <= 0) {
-		strcpy (buffer, (reply == -ECONNRESET
-		                 ? "Connection reset by peer." : "Protocol error!\n"));
+		if (reply == -ECONNRESET) {
+			strcpy (buffer, "<b>Connection reset by peer</b><p><font size=\"2\">"
+			        "The server hung up before saying anything.</font>");
+		} else if (reply < -1) {
+			sprintf (buffer, "<b>Receive error: %s</b><p><font size=\"2\">"
+			         "The connection was made, but reading the reply failed "
+			         "with the error above.  If every site fails this way, "
+			         "the TCP/IP stack can probably not reach the internet: "
+			         "check its gateway and DNS settings.</font>",
+			         strerror(-reply));
+		} else {
+			strcpy (buffer, "<b>Protocol error</b><p><font size=\"2\">"
+			        "The reply received was not HTTP.  Whatever answered "
+			        "is not a web server, or the reply was mangled on the "
+			        "way here.</font>");
+		}
 	}
 	if (hdr->SrvrDate <= 0) {
 		hdr->SrvrDate = (hdr->Modified > 0 ? hdr->Modified : hdr->LoclDate);
