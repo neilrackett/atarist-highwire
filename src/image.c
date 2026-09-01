@@ -483,6 +483,7 @@ static FRAME reflow_frame = NULL;   /* page with a recalculation pending     */
 static long  reflow_first = 0;      /* when the first request arrived        */
 static long  reflow_last  = 0;      /* when the latest one did               */
 static int   reflow_count = 0;
+static long  reflow_top   = 0;      /* page y of the topmost affected line   */
 
 #ifdef REFLOWTEST
 static BOOL reflow_testing = FALSE;
@@ -517,7 +518,24 @@ reflow_run (FRAME frame)
 
 	dombox_MinWidth (&frame->Page);
 	containr_calculate (frame->Container, NULL);
-	containr_notify (frame->Container, HW_PageUpdated, &rec);
+
+	/* Layout is top down, so nothing above the topmost line that asked for
+	 * this batch has moved: repaint from there, not the whole window.  On
+	 * the Mega STE the full repaint was costing a batch half as much again
+	 * as the recalculation itself.
+	*/
+	if (reflow_top > 0) {
+		long y = reflow_top + frame->clip.g_y - frame->v_bar.scroll;
+		if (y > rec.g_y + rec.g_h) {
+			rec.g_h = 0;              /* everything affected is scrolled away */
+		} else if (y > rec.g_y) {
+			rec.g_h -= (WORD)(y - rec.g_y);
+			rec.g_y  = (WORD)y;
+		}
+	}
+	if (rec.g_h > 0) {
+		containr_notify (frame->Container, HW_PageUpdated, &rec);
+	}
 
 	if (logging_is_on) {
 		logprintf (LOG_BLUE, "img reflow %ldms for %d images\n",
@@ -564,10 +582,23 @@ reflow_defer (FRAME frame)
 		}
 		reflow_frame = frame;
 		reflow_first = clock();
+		reflow_top   = 0;
 		sched_insert (reflow_job, frame, (long)frame->Container, 1);
 	}
 	reflow_last = clock();
 	reflow_count++;
+}
+
+/*----------------------------------------------------------------------------*/
+static void
+reflow_defer_at (IMAGE img)
+{
+	long x, y;
+	dombox_Offset (img->offset.Origin, &x, &y);
+	reflow_defer (img->frame);
+	if (reflow_count == 1 || y < reflow_top) {
+		reflow_top = y;
+	}
 }
 
 #ifdef REFLOWTEST
@@ -811,7 +842,7 @@ image_job (void * arg, long invalidated)
 		 * the batch redraw brings it in.  Everything else on the page keeps
 		 * drawing as normal in the meantime.
 		*/
-		reflow_defer (frame);
+		reflow_defer_at (img);
 		clip = NULL;
 	} else if (img->u.Data) {
 		calc_xy = 1;
