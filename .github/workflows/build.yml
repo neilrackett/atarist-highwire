@@ -26,6 +26,10 @@ jobs:
           SYSROOT_DIR="/" ./.scripts/install-freemint.sh binutils gcc mintbin
           ./.scripts/install-freemint.sh mintlib gemlib cflib fdlibm
           ./.scripts/install-libs.sh libpng-1.6.34-mint-dev.tar.xz zlib-1.2.12-mint-20220914-dev.tar.xz giflib-5.1.4-mint-dev.tar.xz jpeg-8d-mint-dev.tar.xz
+      - name: libcmini, for the small overlays
+        run: |
+          git clone --depth 1 https://github.com/freemint/libcmini .crosslibs/libcmini
+          make -C .crosslibs/libcmini CROSS=Y
       - name: build
         run: ./.scripts/build.sh
       - name: package
