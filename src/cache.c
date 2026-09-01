@@ -666,6 +666,84 @@ cache_expires (LOCATION loc, long date)
 	}
 }
 
+#ifdef CACHETEST
+/*============================================================================*/
+/* Reproduces, without a network, what an image on a cold cache actually asks
+ * the cache.  A downloaded picture leaves two entries for one location: the
+ * file it was fetched into, and the decoded copy held in memory.  An image
+ * whose tag declares no size cannot name the decoded copy, so it asks with a
+ * key of 0.  The question is whether that finds the memory entry.
+*/
+static void
+selftest_report (const char * what, CRESULT res, CACHEINF info)
+{
+	printf ("  %-22s res=%02x %s%s%s%s ident=%08lx object=%s\n", what, (int)res,
+	        (res & CR_BUSY  ? "BUSY "  : ""), (res & CR_LOCAL ? "LOCAL " : ""),
+	        (res & CR_FOUND ? "FOUND " : ""), (res & CR_MATCH ? "MATCH " : ""),
+	        info->Ident, (info->Object ? "yes" : "no"));
+}
+
+void
+cache_selftest (void)
+{
+	struct s_cache_info info;
+	LOCATION loc;
+	CACHEOBJ obj;
+	long     hash = 0xFF00E00EuL;   /* img_hash(14,14,-1), a 14x14 with alpha */
+	char     file[64];
+	CRESULT  res;
+
+	printf ("CACHETEST begin\n");
+	printf ("  cache dir: %s\n", (cache_DirInfo() ? cache_DirInfo() : "(none)"));
+
+	/* Any location will do: cache_query() looks only at whether an entry is
+	 * held in memory or on disk, never at the protocol.  A local one avoids
+	 * needing the network overlay, which is not loaded this early. */
+	loc = new_location ("C:\\BULLET02.GIF", NULL);
+	printf ("  location: %s\n", (loc ? "made" : "NULL"));
+	if (!loc) { printf ("CACHETEST end\n"); return; }
+
+	if ((obj = malloc (64)) == NULL) {
+		printf ("  no memory\nCACHETEST end\n");
+		return;
+	}
+	memset (file, 0xA5, sizeof(file));
+	memset (obj,  0x5A, 64);
+
+	res = cache_exclusive (loc);
+	printf ("  reserved for download: res=%02x\n", (int)res);
+
+	printf ("  assigning the downloaded file...\n");
+	cache_assign (loc, file, sizeof(file), "gif", 0, 0);
+	printf ("  assigned\n");
+
+	printf ("  inserting the decoded copy...\n");
+	cache_insert (loc, hash, 0, &obj, 64, free);
+	printf ("  inserted\n");
+
+	res = cache_query (loc, 0, &info);
+	selftest_report ("unsized image asks", res, &info);
+
+	res = cache_query (loc, hash, &info);
+	selftest_report ("sized image asks", res, &info);
+
+	/* Now put the downloaded file back at the head of the chain, which is what
+	 * a lookup of it does, and ask again.  On a page being loaded the file is
+	 * touched over and over, so this is the order that matters. */
+	cache_lookup (loc, 0, NULL);
+	printf ("  -- downloaded file moved to the head of the chain --\n");
+
+	res = cache_query (loc, 0, &info);
+	selftest_report ("unsized image asks", res, &info);
+
+	res = cache_query (loc, hash, &info);
+	selftest_report ("sized image asks", res, &info);
+
+	printf ("CACHETEST end\n");
+}
+#endif
+
+
 /*============================================================================*/
 CRESULT
 cache_query (LOCATION loc, long ident, CACHEINF info)
@@ -687,23 +765,34 @@ cache_query (LOCATION loc, long ident, CACHEINF info)
 	while (citem) {
 		if (location_equal (loc, citem->Location)) {
 			if (!item_isMem (citem)) {
-				if (citem->Cached[0]) {
-					found         = citem;
-					info->Cached  = citem->Cached;
-					info->Local   = cache_location (citem);
-					info->Date    = citem->Date;
-					info->Expires = citem->Expires;
-					res_d         = CR_LOCAL;
-				} else {
-					res_d         = CR_BUSY;
+				/* Asked without an ident, this used to stop at the first entry
+				 * held on disk, which is the file the page was fetched into.
+				 * The decoded copy of the same location can sit further down
+				 * the chain, and stopping here never reached it: an image whose
+				 * tag declares no size has no ident to ask with, so it missed
+				 * its own decode and was decoded again for every instance.
+				 * Keep the first entry on disk, as before, but carry on until
+				 * there is something in memory to report as well.
+				*/
+				if (ident || !res_d) {
+					if (citem->Cached[0]) {
+						found         = citem;
+						info->Cached  = citem->Cached;
+						info->Local   = cache_location (citem);
+						info->Date    = citem->Date;
+						info->Expires = citem->Expires;
+						res_d         = CR_LOCAL;
+					} else {
+						res_d         = CR_BUSY;
+					}
+					if (!info->Ident) {
+						info->Ident  = citem->Ident;
+					}
+					if (!ident || !info->Source) {
+						info->Source = citem->Location;
+					}
 				}
-				if (!info->Ident) {
-					info->Ident  = citem->Ident;
-				}
-				if (!ident || !info->Source) {
-					info->Source = citem->Location;
-				}
-				if (!ident || (res_m == CR_MATCH)) break;
+				if ((!ident && info->Object) || (res_m == CR_MATCH)) break;
 			
 			} else if (ident == citem->Ident || !info->Object) {
 				info->Object = citem->Object;

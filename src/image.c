@@ -460,6 +460,230 @@ image_ldr (void * arg, long invalidated)
 	return FALSE;
 }
 
+/*------------------------------------------------------------------------------
+ * Deferred reflow.
+ *
+ * Every image that arrives with a size the layout did not expect used to
+ * recalculate the whole page there and then, which costs the same whether the
+ * picture is a banner or a 14 pixel bullet, and a page with sixty distinct
+ * pictures paid it sixty times.  Instead the request is parked here and one
+ * recalculation serves everything that arrived in the same burst: the job
+ * waits, cheaply, until no new request has come in for half a second (or two
+ * seconds after the first, so a steady trickle cannot starve it), then lays
+ * the page out once and redraws it.
+ *
+ * Only the recalculation is deferred.  Text renders as it always did, images
+ * whose size was already right still draw the moment they decode, and the
+ * scheduler keeps running, so the page stays live throughout.
+*/
+#define REFLOW_QUIET (CLK_TCK /2)   /* fire after this much calm...          */
+#define REFLOW_LIMIT (CLK_TCK *2)   /* ...but never wait longer than this    */
+
+static FRAME reflow_frame = NULL;   /* page with a recalculation pending     */
+static long  reflow_first = 0;      /* when the first request arrived        */
+static long  reflow_last  = 0;      /* when the latest one did               */
+static int   reflow_count = 0;
+static long  reflow_top   = 0;      /* page y of the topmost affected line   */
+
+#ifdef REFLOWTEST
+static BOOL reflow_testing = FALSE;
+static int  rt_fires       = 0;
+#endif
+
+static void
+reflow_run (FRAME frame)
+{
+	GRECT  rec;
+	time_t t;
+	int    n    = reflow_count;
+
+#ifdef REFLOWTEST
+	if (reflow_testing) {
+		/* The layout half is proven by the pixel comparisons; here the frame
+		 * is a fake and only the timing is under test, so just say we fired.
+		*/
+		rt_fires++;
+		printf ("RT fire n=%d first+%ldms last+%ldms\n",
+		        n, (long)(clock() - reflow_first) * 1000 / CLK_TCK,
+		           (long)(clock() - reflow_last)  * 1000 / CLK_TCK);
+		reflow_frame = NULL;
+		reflow_count = 0;
+		return;
+	}
+#endif
+	rec = frame->Container->Area;
+	t   = clock();
+	reflow_frame = NULL;
+	reflow_count = 0;
+
+	dombox_MinWidth (&frame->Page);
+	containr_calculate (frame->Container, NULL);
+
+	/* Layout is top down, so nothing above the topmost line that asked for
+	 * this batch has moved: repaint from there, not the whole window.  On
+	 * the Mega STE the full repaint was costing a batch half as much again
+	 * as the recalculation itself.
+	*/
+	if (reflow_top > 0) {
+		long y = reflow_top + frame->clip.g_y - frame->v_bar.scroll;
+		if (y > rec.g_y + rec.g_h) {
+			rec.g_h = 0;              /* everything affected is scrolled away */
+		} else if (y > rec.g_y) {
+			rec.g_h -= (WORD)(y - rec.g_y);
+			rec.g_y  = (WORD)y;
+		}
+	}
+	if (rec.g_h > 0) {
+		containr_notify (frame->Container, HW_PageUpdated, &rec);
+	}
+
+	if (logging_is_on) {
+		logprintf (LOG_BLUE, "img reflow %ldms for %d images\n",
+		           (long)(clock() - t) * 1000 / CLK_TCK, n);
+	}
+}
+
+static int
+reflow_job (void * arg, long invalidated)
+{
+	FRAME frame = arg;
+
+	if (frame != reflow_frame) {
+		return FALSE;                /* flushed, or a stale entry             */
+	}
+	if (invalidated) {
+		reflow_frame = NULL;         /* the page is being torn down           */
+		reflow_count = 0;
+		return FALSE;
+	}
+	if (clock() - reflow_last  < REFLOW_QUIET &&
+	    clock() - reflow_first < REFLOW_LIMIT) {
+		return -2;                   /* JOB_NOOP: more may be about to arrive */
+	}
+	reflow_run (frame);
+	return FALSE;
+}
+
+static void
+reflow_defer (FRAME frame)
+{
+	if (reflow_frame == frame &&
+	    clock() - reflow_first > REFLOW_LIMIT) {
+		/* Overdue.  The parked job cannot be relied on to fire during a page
+		 * load, because the loader's jobs outrank it for as long as anything
+		 * is arriving; so the arrival that finds the batch overdue settles it
+		 * here, and the parked job is only the tail collector.
+		*/
+		reflow_run (frame);
+	}
+	if (reflow_frame != frame) {
+		if (reflow_frame) {          /* another page is waiting: settle it    */
+			reflow_run (reflow_frame);
+		}
+		reflow_frame = frame;
+		reflow_first = clock();
+		reflow_top   = 0;
+		sched_insert (reflow_job, frame, (long)frame->Container, 1);
+	}
+	reflow_last = clock();
+	reflow_count++;
+}
+
+/*----------------------------------------------------------------------------*/
+static void
+reflow_defer_at (IMAGE img)
+{
+	long x, y;
+	dombox_Offset (img->offset.Origin, &x, &y);
+	reflow_defer (img->frame);
+	if (reflow_count == 1 || y < reflow_top) {
+		reflow_top = y;
+	}
+}
+
+#ifdef REFLOWTEST
+/*============================================================================*/
+/* Drives the deferral with the arrival patterns the network produces and a
+ * local page cannot: bursts, a steady trickle, two pages at once, teardown.
+ * The job is polled directly, as the main loop's timer would, and the fake
+ * frames' queued jobs are removed afterwards so nothing fires later against
+ * a frame that never existed.
+*/
+static void
+rt_wait (long ticks)
+{
+	long t0 = clock();
+	while (clock() - t0 < ticks);
+}
+
+void image_reflow_selftest (void);
+
+void
+image_reflow_selftest (void)
+{
+	static struct frame_item fa, fb;
+	long t0;
+	int  r, i, fires;
+
+	fa.Container = (CONTAINR)&fa;
+	fb.Container = (CONTAINR)&fb;
+	reflow_testing = TRUE;
+	printf ("REFLOWTEST begin (quiet=%ldms limit=%ldms)\n",
+	        (long)REFLOW_QUIET * 1000 / CLK_TCK,
+	        (long)REFLOW_LIMIT * 1000 / CLK_TCK);
+
+	/* 1: a burst coalesces into one firing, after the quiet time */
+	for (i = 0; i < 5; i++) reflow_defer (&fa);
+	r = reflow_job (&fa, 0);
+	printf ("  burst: poll right away -> %d (want -2, still waiting)\n", r);
+	rt_wait (REFLOW_QUIET /2);
+	r = reflow_job (&fa, 0);
+	printf ("  burst: poll at quiet/2 -> %d (want -2)\n", r);
+	rt_wait (REFLOW_QUIET /2 + REFLOW_QUIET /8);
+	r = reflow_job (&fa, 0);
+	printf ("  burst: poll past quiet -> %d (want 0, fired above with n=5)\n", r);
+
+	/* 2: a steady trickle cannot starve it, even unpolled.  On a real page
+	 * load the parked job is outranked by the loader's jobs the whole time,
+	 * so nothing polls it; the arrivals themselves must enforce the cap.
+	 * This is the pattern that bit on hardware: 177 images, one batch.
+	*/
+	t0 = clock();
+	fires = rt_fires;
+	for (i = 0; i < 8; i++) {
+		reflow_defer (&fa);
+		rt_wait (REFLOW_QUIET *3 /5);          /* under quiet: always "hot" */
+	}
+	if (reflow_count) {
+		rt_wait (REFLOW_QUIET + REFLOW_QUIET /8);
+		reflow_job (&fa, 0);                   /* the tail collector */
+	}
+	printf ("  trickle: %d firings for 8 unpolled images (want 2)\n",
+	        rt_fires - fires);
+	(void)t0;
+
+	/* 3: a second page flushes the first at once */
+	reflow_defer (&fa);
+	reflow_defer (&fb);                        /* must fire fa immediately */
+	printf ("  flush: fa fired above with n=1; fb now pending: %s\n",
+	        (reflow_frame == &fb ? "yes" : "NO"));
+
+	/* 4: teardown cancels cleanly and the next page starts fresh */
+	r = reflow_job (&fb, (long)fb.Container);
+	printf ("  teardown: invalidated -> %d (want 0), pending cleared: %s\n",
+	        r, (reflow_frame == NULL ? "yes" : "NO"));
+	reflow_defer (&fa);
+	rt_wait (REFLOW_QUIET + REFLOW_QUIET /8);
+	r = reflow_job (&fa, 0);
+	printf ("  restart: poll past quiet -> %d (want 0, fired with n=1)\n", r);
+
+	sched_remove (reflow_job, &fa);
+	sched_remove (reflow_job, &fb);
+	reflow_testing = FALSE;
+	printf ("REFLOWTEST end\n");
+}
+#endif
+
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 static int
 image_job (void * arg, long invalidated)
@@ -494,6 +718,11 @@ image_job (void * arg, long invalidated)
 		long    ident = (img->set_w <= 0 || img->set_h <= 0 ? 0
 		                 : img_hash (img->disp_w, img->disp_h, img->backgnd));
 		CRESULT res   = cache_query (loc, ident, &info);
+#ifdef CACHEDIAG
+		printf ("QRY %-14s set=%dx%d disp=%dx%d bg=%d ask=%08lx res=%02x got=%08lx\n",
+		        loc->File, img->set_w, img->set_h, img->disp_w, img->disp_h,
+		        img->backgnd, ident, (int)res, info.Ident);
+#endif
 		if (res & CR_MATCH) {
 			cached = info.Object;
 		
@@ -509,6 +738,17 @@ image_job (void * arg, long invalidated)
 			if ((char)(info.Ident >>24) == 0xFF) {
 				img->backgnd = -1;
 			}
+			if (!ident) {
+				/* Asked without a size, so disp_w/disp_h still hold the
+				 * placeholder and no key drawn from them can match.  Take the
+				 * size off the found copy exactly as image_calculate() does
+				 * during layout -- which is what used to repair this as a side
+				 * effect, back when every arriving image relaid the page out.
+				*/
+				cIMGDATA data = info.Object;
+				img_scale (img, data->img_w, data->img_h, NULL);
+				set_word (img);
+			}
 			ident = img_hash (img->disp_w, img->disp_h, img->backgnd);
 			if (ident == info.Ident) {
 				cached = info.Object;      /* the correction was enough */
@@ -516,6 +756,10 @@ image_job (void * arg, long invalidated)
 			} else if ((res = cache_query (loc, ident, &info)) & CR_MATCH) {
 				cached = info.Object;      /* our own entry was further down */
 			}
+#ifdef CACHEDIAG
+			printf ("  found: recomputed=%08lx stored=%08lx -> %s\n",
+			        ident, info.Ident, (cached ? "HIT" : "MISS"));
+#endif
 		}
 		if (!cached) {
 			if (res & CR_LOCAL) {
@@ -589,48 +833,17 @@ image_job (void * arg, long invalidated)
 	    || img->disp_w != old_w || img->disp_h != old_h) {
 /*		long par_x = par->Box.Rect.X;*/
 /*		long par_y = par->Box.Rect.Y;*/
-		long off_y = img->offset.Y;
-		long par_w = par->Box.Rect.W;
-		long par_h = par->Box.Rect.H;
-		BOOL recalc;
 		if (par->Box.MinWidth < img->disp_w) {
 			 par->Box.MinWidth = img->disp_w;
 			 par->Box.MaxWidth = 0;
 		}
-		t_mark = clock();
-		dombox_MinWidth (&frame->Page);
-
-#if 0
-		if (containr_calculate (frame->Container, NULL)) {
-			calc_xy = 0;
-		} else if (par_w == par->Box.Rect.W && par_h == par->Box.Rect.H) {
-			calc_xy = 1;
-			rec.g_w = par_w;
-			rec.g_h = par_h;
-		} else if (par_x == par->Box.Rect.X && par_y == par->Box.Rect.Y) {
-			calc_xy = -1;
-#endif
-
-		recalc = containr_calculate (frame->Container, NULL);
-		t_calc = clock() - t_mark;
-
-		if (recalc && par_w == par->Box.Rect.W) {
-			long x, y;
-			dombox_Offset (img->offset.Origin, &x, &y);
-			x += frame->clip.g_x - frame->h_bar.scroll;
-			y += frame->clip.g_y - frame->v_bar.scroll;
-			if (off_y == img->offset.Y) {
-				y    += off_y;
-			} else {
-				off_y = 0;
-			}
-			rec.g_y = (WORD)y;
-			if (par_h == par->Box.Rect.H) {
-				rec.g_x = (WORD)x;
-				rec.g_w = (WORD)par_w;
-				rec.g_h = (WORD)(par_h - off_y);
-			}
-		}
+		/* The layout this picture lands in is stale until the deferred
+		 * recalculation runs, so there is nowhere correct to draw it yet;
+		 * the batch redraw brings it in.  Everything else on the page keeps
+		 * drawing as normal in the meantime.
+		*/
+		reflow_defer_at (img);
+		clip = NULL;
 	} else if (img->u.Data) {
 		calc_xy = 1;
 		rec.g_w = img->disp_w + img->hspace;

@@ -26,6 +26,11 @@
 #include "ovl_sys.h"
 #include "bookmark.h"
 
+#ifdef CACHETEST
+#include "Location.h"
+#include "cache.h"
+#endif
+
 #ifdef LATTICE
 	/* set stack size for LATTICE here */
 	unsigned long _STACK = 16384uL;
@@ -234,6 +239,16 @@ main (int argc, char **argv)
 	/* init paths and load config */
 	init_paths();
 	read_config();
+
+#ifdef REFLOWTEST
+	{	void image_reflow_selftest (void);
+		image_reflow_selftest();
+	}
+#endif
+
+#ifdef CACHETEST
+	cache_selftest();
+#endif
 
 	/* load/create bookmark.htm file */
 	if (read_bookmarks (&old_bookm) && old_bookm) {
