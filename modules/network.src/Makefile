@@ -84,6 +84,13 @@ $(TARGET): $(OBJS)
 060: ; $(MAKE) CPU=68020-60
 v4e: ; $(MAKE) CPU=5475
 
+# The other stacks.  Each wrapper names its flavour and includes network.c,
+# so they share every rule above; only iconnect still needs Pure C, its
+# bundled headers fighting the ones the cross compiler brings.
+sting:    ; $(MAKE) TARGET=../sting.ovl    CFILES=sting.c    INCLUDE=-Iinclude
+stik2:    ; $(MAKE) TARGET=../stik2.ovl    CFILES=stik2.c    INCLUDE=-Iinclude
+magicnet: ; $(MAKE) TARGET=../magicnet.ovl CFILES=magicnet.c INCLUDE=-Iinclude
+
 clean:
 	$(RM) $(OBJS)
 
