@@ -1,3 +1,11 @@
+Changes in V. 0.4.2
+
+  - let an image with no declared size find its cached copy, instead
+    of decoding it again for every appearance
+  - lay the page out once per burst of arriving images, repainting
+    only what moved -- a long image-heavy page loads about a third
+    faster, and pictures appear while it is still loading
+
 Changes in V. 0.4.1
 
   - route https through a proxy, and tell it the screen's colours and
