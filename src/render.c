@@ -1436,6 +1436,20 @@ url_correct (char * url)
 	return url;
 }
 
+/*------------------------------------------------------------------------------
+ * malloc'ed and corrected copy of an url attribute, NULL if absent or empty
+ */
+static char *
+get_value_url (PARSER parser, HTMLKEY key)
+{
+	char * url = get_value_str (parser, key);
+	if (url && !*url_correct (url)) {
+		free (url);
+		url = NULL;
+	}
+	return url;
+}
+
 
 /*----------------------------------------------------------------------------*/
 static const char *
@@ -1694,7 +1708,7 @@ render_FRAMESET_tag (PARSER parser, const char ** text, UWORD flags)
 						depth++;
 					}
 				} else if (tag == TAG_FRAME) {
-					char frame_file[HW_PATH_MAX];
+					char * frame_file;
 
 					container->Mode = CNT_FRAME;
 					container->Name = get_value_str (parser, KEY_NAME);
@@ -1715,10 +1729,10 @@ render_FRAMESET_tag (PARSER parser, const char ** text, UWORD flags)
 						}
 					}
 
-					if (get_value (parser, KEY_SRC, frame_file,sizeof(frame_file))) {
-						LOADER ldr = start_page_load (container,
-						                              url_correct (frame_file),
+					if ((frame_file = get_value_url (parser, KEY_SRC)) != NULL) {
+						LOADER ldr = start_page_load (container, frame_file,
 						                              base, FALSE, NULL);
+						free (frame_file);
 						if (ldr) {
 							short lft = get_value_unum (parser, KEY_MARGINWIDTH,  -1);
 							short top = get_value_unum (parser, KEY_MARGINHEIGHT, -1);
@@ -1778,15 +1792,18 @@ render_BASE_tag (PARSER parser, const char ** text, UWORD flags)
 	UNUSED (text);
 
 	if (flags & PF_START) {
-		char output[HW_PATH_MAX];
-		if (get_value (parser, KEY_HREF, output, sizeof(output)-1)) {
+		char * output = get_value_url (parser, KEY_HREF);
+		if (output) {
 			LOCATION base;
 			size_t   len = strlen (output);
-			if (len && output[len -1] != '/') {
-				char buff[sizeof(output)];
+			if (output[len -1] != '/') {
+				char buff[1024];
 				location_FullName (parser->Frame->Location, buff, sizeof(buff));
 				if (strcmp (output, buff) != 0) {
-					strcat (output, "/");
+					char * tmp = realloc (output, len +2);
+					if (tmp) {
+						strcpy ((output = tmp) + len, "/");
+					}
 				}
 			}
 			base = new_location (output, parser->Frame->Location);
@@ -1794,6 +1811,7 @@ render_BASE_tag (PARSER parser, const char ** text, UWORD flags)
 				free_location (&parser->Frame->BaseHref);
 				parser->Frame->BaseHref = base;
 			}
+			free (output);
 		} else {
 			char * target = get_value_str (parser, KEY_TARGET);
 			if (target) {
@@ -1964,7 +1982,7 @@ render_STYLE_tag (PARSER parser, const char ** text, UWORD flags)
 static UWORD
 render_LINK_tag (PARSER parser, const char ** text, UWORD flags)
 {
-	char out[HW_PATH_MAX];
+	char out[100], * href;
 
 	if ((flags & PF_START) && get_value(parser,KEY_REL,out,sizeof(out))) {
 		if (stricmp (out, "StyleSheet") == 0) {
@@ -1973,15 +1991,16 @@ render_LINK_tag (PARSER parser, const char ** text, UWORD flags)
 			        mime_byString (out, NULL) == MIME_TXT_CSS)
 			    && (!get_value (parser, KEY_MEDIA, out, sizeof(out)) ||
 			        strstr (out, "all") || strstr (out, "screen"))
-			    && get_value (parser, KEY_HREF, out, sizeof(out))) {
+			    && (href = get_value_url (parser, KEY_HREF)) != NULL) {
 				
 				BOOL     jump = FALSE;
 				LOCATION loc;
 				if (!parser->ResumeFnc) { /* initial call */
-					loc = new_location (out, parser->Frame->BaseHref);
+					loc = new_location (href, parser->Frame->BaseHref);
 				} else {
 					loc = NULL;
 				}
+				free (href);
 				if (!parse_css (parser, loc, NULL)) {
 					parser_resume (parser, render_LINK_tag, *text);
 					jump = TRUE;
@@ -2010,14 +2029,15 @@ render_BGSOUND_tag (PARSER parser, const char ** text, UWORD flags)
 	
 	if (flags & PF_START)
 	{
-		char snd_file[HW_PATH_MAX];
+		char * snd_file = get_value_url (parser, KEY_SRC);
 
-		if (get_value (parser, KEY_SRC, snd_file, sizeof(snd_file)))
+		if (snd_file)
 		{
 			start_objc_load (parser->Target
 			                ,snd_file
 			                ,parser->Frame->BaseHref
 			                ,(int(*)(void*,long))NULL, NULL);
+			free (snd_file);
 		}
 	}
 
@@ -2856,8 +2876,8 @@ render_EMBED_tag (PARSER parser, const char ** text, UWORD flags)
 	UNUSED (text);
 	
 	if (flags & PF_START) {
-		char src[HW_PATH_MAX], type[100];
-		if (get_value (parser, KEY_SRC, src, sizeof(src))) {
+		char * src = get_value_url (parser, KEY_SRC), type[100];
+		if (src) {
 			MIMETYPE mime = (get_value (parser, KEY_TYPE, type, sizeof(type))
 		                 ? mime_byString   (type, NULL)
 		                 : mime_byExtension (src, NULL, NULL));
@@ -2865,6 +2885,7 @@ render_EMBED_tag (PARSER parser, const char ** text, UWORD flags)
 				start_objc_load (parser->Target, src, parser->Frame->BaseHref,
 				                 (int(*)(void*,long))NULL, NULL);
 			}
+			free (src);
 		}
 	}
 
@@ -2932,7 +2953,7 @@ render_IMG_tag (PARSER parser, const char ** text, UWORD flags)
 		short width = 0;
 		WORDITEM word;
 		char output[100];
-		char img_file[HW_PATH_MAX];
+		char * img_file;
 	
 		/* Past MAX_IMAGES fall back to the ALT text.  Each further image costs
 		 * a fetch, a decode and a dither, so a page carrying hundreds of them
@@ -2981,9 +3002,7 @@ render_IMG_tag (PARSER parser, const char ** text, UWORD flags)
 			}
 		}
 
-		if (get_value (parser, KEY_SRC, img_file, sizeof(img_file))) {
-			url_correct (img_file);
-		}
+		img_file = get_value_url (parser, KEY_SRC);
 
 		if (parser->hasStyle) {
 			/*short em = parser->Current.word->font->Ascend;
@@ -3038,6 +3057,7 @@ render_IMG_tag (PARSER parser, const char ** text, UWORD flags)
 				   width, height,
 		           get_value_size (parser, KEY_VSPACE),
 		           get_value_size (parser, KEY_HSPACE),FALSE);
+		if (img_file) free (img_file);
 		font_switch (current->word->font, NULL);
 		new_word (current, TRUE);
 		current->word->attr           = word_attr;
