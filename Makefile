@@ -1,7 +1,8 @@
 #
 # Makefile for highwire
 #
-TARGET = highwire.app
+TARGET = highwire.prg
+DISTDIR = dist
 
 # compiler settings
 
@@ -12,9 +13,9 @@ LD = $(CC)
 CP = cp
 RM = rm -f
 
-#CPU = 68000
+CPU = 68000
 #CPU = 68030
-CPU = 68040
+#CPU = 68040
 #CPU = 68020-60
 #CPU = 5475
 
@@ -110,7 +111,8 @@ DEPDIR = $(OBJDIR)/.deps
 # stay as bare names, which is also what the Pure C project files in src/ want.
 VPATH = src
 
-all: $(TARGET)
+# The default build links straight into dist/, ready to copy across.
+all: $(DISTDIR)/$(TARGET)
 
 #
 # C source files
@@ -191,7 +193,8 @@ OBJS_MAGIC := $(shell mkdir ./$(OBJDIR) > /dev/null 2>&1 || :)
 DEPENDENCIES = $(addprefix ./$(DEPDIR)/, $(patsubst %.c,%.P,$(CFILES)))
 
 
-$(TARGET): $(OBJS)
+$(TARGET) $(DISTDIR)/$(TARGET): $(OBJS)
+	mkdir -p $(@D)
 	$(LD) -o $@ -Wl,-stack,128k -Wl,--mprg-flags=0x17 $(CFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
 
 000: ; $(MAKE) CPU=68000
@@ -212,22 +215,21 @@ distclean: clean
 #
 # distribution/snapshot archive
 #
-DISTDIR=dist
 dist::
 	$(MAKE) clean
-	$(MAKE) CPU=68000
+	$(MAKE) CPU=68000 $(TARGET)
 	mkdir -p $(DISTDIR)
-	mv highwire.app $(DISTDIR)/highwire.000
-	$(MAKE) CPU=68030
-	mv highwire.app $(DISTDIR)/highwire.030
-	$(MAKE) CPU=68030 FPU=1
-	mv highwire.app $(DISTDIR)/highwire.03F
-	$(MAKE) CPU=68040
-	mv highwire.app $(DISTDIR)/highwire.040
-	$(MAKE) CPU=68020-60
-	mv highwire.app $(DISTDIR)/highwire.060
-	$(MAKE) CPU=5475
-	mv highwire.app $(DISTDIR)/highwire.v4e
+	mv $(TARGET) $(DISTDIR)/highwire.000
+	$(MAKE) CPU=68030 $(TARGET)
+	mv $(TARGET) $(DISTDIR)/highwire.030
+	$(MAKE) CPU=68030 FPU=1 $(TARGET)
+	mv $(TARGET) $(DISTDIR)/highwire.03F
+	$(MAKE) CPU=68040 $(TARGET)
+	mv $(TARGET) $(DISTDIR)/highwire.040
+	$(MAKE) CPU=68020-60 $(TARGET)
+	mv $(TARGET) $(DISTDIR)/highwire.060
+	$(MAKE) CPU=5475 $(TARGET)
+	mv $(TARGET) $(DISTDIR)/highwire.v4e
 	cp -a deskicon.rsc highwire.rsc $(DISTDIR)
 	mkdir -p $(DISTDIR)/doc
 	cp -a doc/HIGHWIRE.DOC doc/hotkeys.txt $(DISTDIR)/doc
