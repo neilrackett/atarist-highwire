@@ -74,8 +74,20 @@ WARN = \
 
 INCLUDE = 
 
+# The toolkit image ships without the image libraries.  A sysroot unpacked
+# into .crosslibs/ supplies them; take the multilib that matches the link.
+CROSSLIBS := $(wildcard .crosslibs/usr/m68k-atari-mint/sys-root/usr)
+ifneq ($(CROSSLIBS),)
+ifeq ($(FPU),0)
+MULTIDIR := .
+else
+MULTIDIR := $(shell $(CC) $(OPTS) -print-multi-directory)
+endif
+INCLUDE += -I$(CROSSLIBS)/include -L$(CROSSLIBS)/lib/$(MULTIDIR)
+endif
+
 hash = \#
-CHECKGIF := $(shell if echo -e "$(hash)include <gif_lib.h> \\nconst char *version = GIF_LIB_VERSION" | $(CC) -E - | grep GIF_LIB_VERSION >/dev/null; then echo -lgif; else echo -lungif; fi)
+CHECKGIF := $(shell if echo -e "$(hash)include <gif_lib.h> \\nconst char *version = GIF_LIB_VERSION" | $(CC) $(INCLUDE) -E - | grep GIF_LIB_VERSION >/dev/null; then echo -lgif; else echo -lungif; fi)
 
 CFLAGS = $(INCLUDE) $(WARN) $(OPTS) $(DEFS)
 ASFLAGS = $(OPTS)
