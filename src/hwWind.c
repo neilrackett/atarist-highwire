@@ -352,15 +352,7 @@ new_hwWind (const char * name, const char * url, BOOL topNbot)
 		widget_w = curr.g_w - desk_area.g_w;
 		widget_h = curr.g_h - desk_area.g_h;
 		inc_xy   = max (widget_w, widget_h) - widget_b;
-		if (desk_area.g_w < 800) {
-			curr = desk_area;
-			curr.g_w = (desk_area.g_w *2) /3;
-		} else {
-			curr.g_x = desk_area.g_x + inc_xy;
-			curr.g_y = desk_area.g_y + inc_xy;
-			curr.g_w = (desk_area.g_w *3) /4;
-			curr.g_h = (desk_area.g_h *3) /4;
-		}
+		curr     = desk_area;
 		brws_gmsk = wgeo_calc (&brws_curr, &curr);
 		
 		if (!ignore_colours) {
