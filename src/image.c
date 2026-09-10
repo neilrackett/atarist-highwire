@@ -15,6 +15,9 @@
 #endif
 
 #include "global.h"
+#ifdef __GNUC__
+# include <osbind.h>
+#endif
 #include "Logging.h"
 #include "image_P.h"
 #include "Location.h"
@@ -912,7 +915,11 @@ setup (IMAGE img, IMGINFO info)
 	wd_width = (img->disp_w + 31) / 16;
 	pg_size  = wd_width * img->disp_h;
 	mem_size = pg_size *2 * n_planes;
-	if ((data = malloc (sizeof (struct s_img_data) + mem_size)) == NULL) {
+	/* A bitmap several screens across is a layout gone wrong, not a picture;
+	 * refuse it before it takes the memory everything else needs. */
+	if (img->disp_w >= 4096 || img->disp_h >= 4096
+	    || mem_size >= (size_t)Malloc (-1L) /2
+	    || (data = malloc (sizeof (struct s_img_data) + mem_size)) == NULL) {
 		return NULL;
 	}
 	data->mem_size   = mem_size;

@@ -113,6 +113,7 @@ typedef enum {
 #define EINVFN 32 /* Function not implemented. */
 #define ENOENT 33
 #define EACCDN 36
+#define ENOMEM 39 /* Insufficient memory. */
 #define EINVAL 25 /* Invalid argument. */
 #define EINTR 128 /* Interrupted function call. */
 #define EPROTONOSUPPORT 305 /* Protocol not supported.  */

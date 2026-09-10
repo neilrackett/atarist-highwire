@@ -8,6 +8,9 @@
 # include <tos.h>
 # include <ext.h>
 #endif
+#ifdef __GNUC__
+# include <osbind.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -651,6 +654,12 @@ chunked_job (void * arg, long invalidated)
 		
 		if (size) {
 			LDRCHUNK chunk = malloc (sizeof (struct s_ldr_chunk) + size -1);
+			if (!chunk) {
+				errprintf ("chunked_job(): out of memory\n");
+				loader->rdDest = NULL;
+				loader->rdLeft = 0;
+				break;
+			}
 			if (!loader->rdList) loader->rdList                   = chunk;
 			else                 ((LDRCHUNK)loader->rdCurr)->next = chunk;
 			loader->rdCurr = chunk;
@@ -686,6 +695,11 @@ chunked_job (void * arg, long invalidated)
 		long     left = loader->DataFill;
 		char   * p    = loader->Data = malloc (left +3);
 		
+		if (!p) {
+			loader->Error = -ENOMEM;
+			loader->DataFill = left = 0;
+			if (!loader->PostBuf) cache_abort (loader->Location);
+		}
 		while ((chunk = next) != NULL) {
 			if (left > 0) {
 				memcpy (p, chunk->data, (left < chunk->size ? left : chunk->size));
@@ -1022,8 +1036,21 @@ header_job (void * arg, long invalidated)
 			sched_insert (loader->SuccJob, loader, (long)0, PRIO_RECIVE);
 			return JOB_DONE;
 		
+		} else if (hdr.Size >= 0 && !hdr.Chunked
+		           && (hdr.Size >= (long)Malloc (-1L) /2
+		               || (loader->Data = malloc (hdr.Size +3)) == NULL)) {
+			/* A 7 MB animated GIF on a 4 MB machine: neither the file nor
+			 * what is decoded from it would fit, so refuse it here rather
+			 * than write through the null pointer. */
+			static char note[100];
+			sprintf (note, "<b>Too large</b><p><font size=\"2\">"
+			         "%ld bytes will not fit in the memory left.</font>",
+			         hdr.Size);
+			hdr.Head      = note;
+			loader->Error = -ENOMEM;
+		
 		} else if (hdr.Size >= 0 && !hdr.Chunked) {
-			loader->Data     = loader->rdDest = malloc (hdr.Size +3);
+			loader->rdDest   = loader->Data;
 			loader->DataSize = loader->rdLeft = hdr.Size;
 			loader->DataFill = hdr.Tlen;
 			if (loader->DataFill) {
