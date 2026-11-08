@@ -15,8 +15,6 @@ RM = rm -f
 STRIP = $(CROSS)strip
 
 CPU = 68000
-#CPU = 68030
-#CPU = 68040
 #CPU = 68020-60
 #CPU = 5475
 
@@ -80,14 +78,12 @@ DEPENDENCIES = $(addprefix $(DEPDIR)/, $(patsubst %.c,%.P,$(CFILES)))
 
 
 $(TARGET): $(OBJS)
-	$(LD) -o $@ $(CFLAGS) -Wl,-stack,8k $(LDFLAGS) $(OBJS) $(LIBS)
+	$(LD) -o $@ $(CFLAGS) -Wl,-stack,128k $(LDFLAGS) $(OBJS) $(LIBS)
 	$(STRIP) $(TARGET)
 	rm $(OBJDIR)/*.o
 
 000: ; $(MAKE) CPU=68000
-030: ; $(MAKE) CPU=68030
-040: ; $(MAKE) CPU=68040
-060: ; $(MAKE) CPU=68020-60
+020: ; $(MAKE) CPU=68020-60
 v4e: ; $(MAKE) CPU=5475
 
 # The other stacks.  Each wrapper names its flavour and includes network.c,
@@ -101,11 +97,21 @@ v4e: ; $(MAKE) CPU=5475
 #
 # STiK2 uses the same code as STinG, so this module is discarded.
 #
-CMINI = ../libcmini/lib
+CMINI = ../../lib/libcmini/lib
+CPUDIR=
 
-sting:    ; $(MAKE) TARGET=network.ldg CFILES=network.c INCLUDE=-Iinclude \
-                    LDFLAGS="-s -nostdlib $(CMINI)/crt0.o" \
-                    LIBS="-L$(CMINI) -lcmini -lgcc -lcmini -lldg -lcmini" \
+ifeq ($(CPU),5475)
+	CPUDIR = /m5475
+else
+	ifeq ($(CPU),68020-60)
+		CPUDIR = /m68020-60
+	endif
+endif
+
+sting:    ; $(MAKE) TARGET=network.ldg CFILES=network.c \
+                    INCLUDE=-Iinclude \
+                    LDFLAGS="-nostdlib $(CMINI)/crt0.o" \
+                    LIBS="-L$(CMINI)$(CPUDIR) -lldg -lcmini -lgcc -lcmini" \
                     LDG_TYPE=USE_STING
                     
 clean:

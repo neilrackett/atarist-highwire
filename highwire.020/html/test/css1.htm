@@ -1,0 +1,88 @@
+<html>
+<head><title>CSS support</title>
+<style type="text/css">
+h2          { color: #000080; }
+p.red       { color: red; }
+p.bigger    { font-size: 150%; }
+p.mono      { font-family: monospace; }
+#unique     { font-weight: bold; text-decoration: underline; }
+.boxed      { border: 2px solid black; background-color: #E0E0E0; }
+.important  { color: gray; }
+.important  { color: black !important; }
+td.shade    { background-color: #C0C0C0; }
+</style>
+</head>
+<body>
+<p><a href="index.htm">&lt; index</a></p>
+<h1>CSS: selectors, fonts, borders, layout</h1>
+<p>Requires USE_CSS = 1. Each section says what should happen.</p>
+
+<h2>Selectors (this heading is navy via "h2")</h2>
+<p class="red">class selector: p.red - this line should be red.</p>
+<p id="unique">id selector: #unique - bold and underlined.</p>
+<p class="important">two rules with !important - this should be black, not gray.</p>
+
+<h2>Inline styles</h2>
+<p style="color: green;">style="color: green"</p>
+<p style="background-color: #C0C0C0;">inline background-color grey.</p>
+<p style="font-weight: bold; font-style: italic; text-decoration: underline;">
+bold + italic + underline from one inline style.</p>
+<p style="text-decoration: line-through;">line-through decoration.</p>
+<p><span style="text-decoration: underline;">underlined span</span> then
+<span style="text-decoration: none;"><u>U tag cancelled by decoration:none</u></span></p>
+
+<h2>Font sizes</h2>
+<p style="font-size: 8pt;">font-size: 8pt</p>
+<p style="font-size: 12pt;">font-size: 12pt</p>
+<p style="font-size: 20pt;">font-size: 20pt</p>
+<p style="font-size: 16px;">font-size: 16px</p>
+<p style="font-size: 1.5em;">font-size: 1.5em</p>
+<p style="font-size: 75%;">font-size: 75%</p>
+<p style="font-size: x-small;">font-size: x-small</p>
+<p style="font-size: x-large;">font-size: x-large</p>
+<p>normal, <span style="font-size: larger;">larger,</span>
+<span style="font-size: smaller;">smaller.</span></p>
+<p class="bigger">class .bigger = 150%.</p>
+
+<h2>Font weight values</h2>
+<p style="font-weight: 700;">font-weight: 700 (bold)</p>
+<p style="font-weight: 400;">font-weight: 400 (normal)</p>
+<p><b><span style="font-weight: normal;">B tag reset by weight:normal</span></b></p>
+
+<h2>Font family</h2>
+<p class="mono">font-family: monospace via class.</p>
+<p style="font-family: serif;">font-family: serif (system font without GDOS).</p>
+
+<h2>Borders and backgrounds</h2>
+<p class="boxed">class .boxed: border: 2px solid black with a grey
+background-color, wrapping onto more than one line to show the box
+follows the text block.</p>
+<p style="border-style: solid; border-width: 1px;">border-style/width 1px solid.</p>
+<p style="border: 4px solid #808080;">4px solid #808080.</p>
+<p style="border-left: 6px solid black;">border-left only, 6px.</p>
+
+<h2>Alignment and layout</h2>
+<p style="text-align: center;">text-align: center</p>
+<p style="text-align: right;">text-align: right</p>
+<div style="width: 50%; border: 1px solid black;">a DIV with width: 50%.</div>
+<br>
+<div style="float: left; width: 120px; border: 1px solid black;">float:
+left DIV, 120px wide</div>
+<p>Text following the floating DIV should wrap beside it and then clear
+below it, given enough words to do so on the current screen width.</p>
+<br clear="all">
+<p style="white-space: nowrap;">white-space: nowrap - this entire line must stay on one line no matter how narrow the window is dragged.</p>
+
+<h2>Tables with CSS</h2>
+<table border="1" style="border-spacing: 6px;">
+<tr><td class="shade">td.shade grey</td><td style="vertical-align: top; height: 40px;">valign top via CSS</td></tr>
+</table>
+
+<h2>Recognised but not implemented</h2>
+<p style="text-indent: 40px;">text-indent (likely ignored)</p>
+<p style="display: none;">display:none - if you can read this, DISPLAY is ignored.</p>
+<ul style="list-style-type: square;"><li>list-style-type (likely ignored)</li></ul>
+
+<p><a href="index.htm">&lt; index</a></p>
+</body>
+</html>

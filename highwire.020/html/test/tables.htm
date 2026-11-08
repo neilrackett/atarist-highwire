@@ -1,0 +1,72 @@
+<html>
+<head><title>Tables</title></head>
+<body>
+<p><a href="index.htm">&lt; index</a></p>
+<h1>Tables: borders, spans, alignment, widths</h1>
+
+<h2>Basic</h2>
+<table border="1">
+<caption>A captioned 3x3 table, border=1</caption>
+<tr><th>head A</th><th>head B</th><th>head C</th></tr>
+<tr><td>a1</td><td>b1</td><td>c1</td></tr>
+<tr><td>a2</td><td>b2</td><td>c2</td></tr>
+</table>
+
+<h2>Border and spacing settings</h2>
+<table border="0"><tr><td>border=0</td><td>two</td></tr></table>
+<br>
+<table border="4"><tr><td>border=4</td><td>two</td></tr></table>
+<br>
+<table border="1" cellpadding="8"><tr><td>cellpadding=8</td><td>two</td></tr></table>
+<br>
+<table border="1" cellspacing="8"><tr><td>cellspacing=8</td><td>two</td></tr></table>
+
+<h2>Widths</h2>
+<table border="1" width="100%"><tr><td>width=100%</td><td width="50%">cell width=50%</td></tr></table>
+<br>
+<table border="1" width="300"><tr><td>width=300 pixels</td><td>second</td></tr></table>
+
+<h2>Spans</h2>
+<table border="1">
+<tr><td colspan="3" align="center">colspan=3</td></tr>
+<tr><td rowspan="2">rowspan=2</td><td>b1</td><td>c1</td></tr>
+<tr><td>b2</td><td>c2</td></tr>
+</table>
+
+<h2>Alignment in cells</h2>
+<table border="1" width="100%">
+<tr><td align="left">left</td><td align="center">center</td><td align="right">right</td></tr>
+<tr><td valign="top" height="48">valign=top</td>
+    <td valign="middle">middle</td>
+    <td valign="bottom">bottom</td></tr>
+</table>
+
+<h2>Colours</h2>
+<table border="1" bgcolor="#C0C0C0">
+<tr><td>table bgcolor</td><td bgcolor="#FFFFFF">cell bgcolor white</td></tr>
+<tr bgcolor="#808080"><td><font color="white">row bgcolor</font></td><td>second</td></tr>
+</table>
+
+<h2>Head, body, foot</h2>
+<table border="1">
+<thead><tr><th>THEAD cell</th><th>right</th></tr></thead>
+<tbody><tr><td>TBODY one</td><td>two</td></tr></tbody>
+<tfoot><tr><td>TFOOT cell</td><td>right</td></tr></tfoot>
+</table>
+
+<h2>Nested</h2>
+<table border="1">
+<tr><td>outer a1</td>
+    <td><table border="1"><tr><td>inner</td><td>table</td></tr></table></td></tr>
+</table>
+
+<h2>Wrapping content</h2>
+<table border="1" width="100%">
+<tr><td>A cell containing enough text that it must wrap within the column
+width chosen by the layout engine on a narrow screen.</td>
+<td><b>bold</b> and <i>italic</i> in a cell</td></tr>
+</table>
+
+<p><a href="index.htm">&lt; index</a></p>
+</body>
+</html>

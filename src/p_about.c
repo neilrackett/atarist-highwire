@@ -16,24 +16,7 @@
 #include "Form.h"
 #include "inet.h"
 #include "cache.h"
-
-#ifdef LIBPNG
-  #include "png.h"
-#endif
-
-#ifdef LIBGIF
-  #include "gif_lib.h"
-#endif
-
-#ifdef LIBJPG
-  #define XMD_H /* avoid redefining INT16 and INT32, already done in gemlib */
-#undef INLINE
-#undef LOCAL
-#undef GLOBAL
-    #include <jpeglib.h>
-  #undef XMD_H
-#endif
-
+#include "img-dcdr.h"
 
 
 /*----------------------------------------------------------------------------*/
@@ -136,9 +119,18 @@ about_highwire (TEXTBUFF current, WORD link_color)
 	WORDITEM list[10], * w = &list[-1];
 	WORD     tab   = 0;
 	size_t   m_num = (inet_type() > 0 ? 1 : 0);
+
+  DECODER *found   = decoder_chain;
+  DECODER *decoder = decoder_chain;
  
   if (ldg_mbedtls_loaded()) { m_num++; }
 	
+  while (found)
+  {
+    if (found->libimg) { m_num++; }
+    found = found->Next;
+  }
+ 
   *(++w) = render_text (current, "Core:\005\022" _HIGHWIRE_VERSION_ "\020\n");
   tab    = max (tab, (*w)->word_width);
 	
@@ -159,35 +151,7 @@ about_highwire (TEXTBUFF current, WORD link_color)
 		*(++w) = render_text (current, buf);
     tab    = max (tab, (*w)->word_width);
 	#endif
-
-  #ifdef LIBPNG
-    # ifdef PNG_LIBPNG_VER_STRING
-		sprintf (buf, "libpng:\005\022%s\020\r", PNG_LIBPNG_VER_STRING);
-		*(++w) = render_text (current, buf);
-    tab    = max (tab, (*w)->word_width);
-    #endif
-  #endif
-
-  #ifdef LIBGIF
-    #if defined(GIF_LIB_VERSION)
-		sprintf (buf, "gif_lib:\005\022%s\020\r", GIF_LIB_VERSION);
-		*(++w) = render_text (current, buf);
-    tab    = max (tab, (*w)->word_width);
-    #elif defined(GIFLIB_MAJOR) && defined(GIFLIB_MINOR) && defined(GIFLIB_RELEASE)
-		sprintf (buf, "gif_lib:\005\022%d.%d.%d\020\r", GIFLIB_MAJOR, GIFLIB_MINOR, GIFLIB_RELEASE);
-		*(++w) = render_text (current, buf);
-    tab    = max (tab, (*w)->word_width);
-    #endif
-  #endif
-
-  #ifdef LIBJPG
-    #ifdef JPEG_LIB_VERSION
-		sprintf (buf, "jpeg_lib:\005\022%d\020\r", JPEG_LIB_VERSION);
-		*(++w) = render_text (current, buf);
-    tab    = max (tab, (*w)->word_width);
-    #endif
-  #endif
-
+  
 	#if defined (__GNUC__)
     #ifdef __VERSION__
     sprintf (buf, "compiled:\005\022Gnu\005C\005%s\020,\005"__DATE__ ",\005" __TIME__"\n", __VERSION__);
@@ -236,18 +200,31 @@ about_highwire (TEXTBUFF current, WORD link_color)
 	 	
 	if (i_net)
   {
-		sprintf (buf, "- %s\005support\005enabled%s", i_net, m_num > 1 ? "\r" : "\n");
+		sprintf (buf, "- %s\005support\005enabled\r", i_net);
 		render_text (current, buf);
 	 
     if (ldg_mbedtls_loaded())
     {
-      sprintf (buf, "- mbedTLS/PolarSSL (%s) handles %s to %s\n", ldg_mbedtls_get_version(), SecProt[cfg_SecProtMin], SecProt[cfg_SecProtMax]);
+      sprintf (buf, "- mbedTLS/PolarSSL (%s) handles %s to %s\r", ldg_mbedtls_get_version(), SecProt[cfg_SecProtMin], SecProt[cfg_SecProtMax]);
       render_text (current, buf);
     }
   }
   
+  while (decoder)
+  {
+    if (decoder->libimg)
+    {
+      decoder->info = ldg_find("hw_dec_info", decoder->libimg);
+      if (*decoder->info)
+      {
+        sprintf (buf, "- %s\r", (*decoder->info)());
+        render_text (current, buf);
+      }
+    }
+    decoder = decoder->Next;
+  }
  
-	render_link (current, "cache:\003\005", "about:cache", link_color);
+	render_link (current, "\ncache:\003\005", "about:cache", link_color);
 }
 
 

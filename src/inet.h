@@ -5,6 +5,8 @@
 #include "ldg.h"
 #include "mbedTLS.h"
 
+extern UWORD cfg_selNetwork;  /* inet network library choice */
+
 /*------------------------------------------------------------------------------
  * Function table structure to store either builtin fallback functions (no OVL
  * loaded) or the functions provided by a loaded network OVL.

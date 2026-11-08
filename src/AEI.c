@@ -35,6 +35,7 @@
 #include "ldg.h"
 #include "inet.h"
 #include "mbedTLS.h"
+#include "img-dcdr.h"
 #ifdef GEM_MENU
 #	include "highwire.h"
 	extern OBJECT * menutree;
@@ -1652,6 +1653,25 @@ process_messages (WORD msg[], PXY mouse, UWORD state)
         ldg_inet_unload();
         ldg_inet_init(aes_global);
         ldg_inet_load();
+      }
+      else
+      {
+        DECODER * found = decoder_chain;
+        while (found)
+        {
+          if (ldg == found->libimg)
+          {
+            found->libimg = NULL;
+            found->open   = NULL;
+            found->info   = NULL;
+            found->set    = NULL;
+
+            if (logging_is_on) { logprintf(LOG_LMAGENTA, "LDG_QUIT/LOST_LIB triggered for modules\\imgd-%s.ldg\n", found->libname); }
+
+            break;
+          }
+          found = found->Next;
+        }
       }
       break;
 		case AP_TERM:

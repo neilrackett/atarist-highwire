@@ -1,0 +1,59 @@
+<html>
+<head><title>Fonts</title></head>
+<body>
+<p><a href="index.htm">&lt; index</a></p>
+<h1>Fonts: FONT / BASEFONT sizes, faces, colours</h1>
+
+<h2>FONT size (1..7)</h2>
+<p>
+<font size="1">size 1</font> -
+<font size="2">size 2</font> -
+<font size="3">size 3</font> -
+<font size="4">size 4</font> -
+<font size="5">size 5</font> -
+<font size="6">size 6</font> -
+<font size="7">size 7</font>
+</p>
+
+<h2>Relative sizes</h2>
+<p>base then
+<font size="+1">+1</font>
+<font size="+2">+2</font>
+<font size="+3">+3</font>
+<font size="-1">-1</font>
+<font size="-2">-2</font>
+and nested relatives:
+<font size="+1">one up <font size="+1">two up <font size="-2">back down two</font></font></font>
+</p>
+
+<h2>FONT color</h2>
+<p>
+<font color="red">red</font>,
+<font color="green">green</font>,
+<font color="blue">blue</font>,
+<font color="#808080">#808080 grey</font>,
+<font color="#C04000">#C04000 rust</font>,
+<font size="5" color="blue">big blue</font>
+- on ST medium these should pick the nearest grey by luminance.
+</p>
+
+<h2>FONT face</h2>
+<p>
+<font face="monospace">face=monospace</font>,
+<font face="courier">face=courier</font>,
+<font face="serif">face=serif</font>,
+<font face="helvetica,sans-serif">face=helvetica,sans-serif</font>,
+<font face="nosuchfont">face=nosuchfont (fallback)</font>
+- without GDOS all land on the system font.
+</p>
+
+<h2>BASEFONT</h2>
+<basefont size="4">
+<p>After BASEFONT size=4 this paragraph should be larger than default,
+and <font size="-1">-1 is relative to it</font>.</p>
+<basefont size="3">
+<p>Back to BASEFONT size=3.</p>
+
+<p><a href="index.htm">&lt; index</a></p>
+</body>
+</html>

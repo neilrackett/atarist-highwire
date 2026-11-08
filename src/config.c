@@ -44,6 +44,7 @@ UWORD        cfg_MaxImages    = 0;
 UWORD        cfg_SecProtMin   = SECURE_PROTOCOL_TLSv1_2;
 UWORD        cfg_SecProtMax   = SECURE_PROTOCOL_TLSv1_3;
 UWORD        cfg_SrvCertVer   = 0;
+UWORD        cfg_selNetwork   = 0;
 
 static const char * cfg_magic = _HIGHWIRE_VERSION_ " [" __DATE__ "]";
 
@@ -588,21 +589,29 @@ static void cfg_protocol (char * param, long arg)
 }
 
 /*----------------------------------------------------------------------------*/
-static void
-cfg_csfile (char * param, long arg)
+static void cfg_csfile (char * param, long arg)
 {
 	(void)arg;
 	ldg_mbedtls_set_csfile(param);
 }
 
 /*----------------------------------------------------------------------------*/
-static void
-cfg_trusted (char * param, long arg)
+static void cfg_trusted (char * param, long arg)
 {
 	(void)arg;
 	ldg_mbedtls_set_trusted_domains(param);
 }
 
+/*----------------------------------------------------------------------------*/
+static void cfg_inet_type (char * param, long arg)
+{
+	long n = atol (param);
+  
+  if (arg == 0)
+  {
+    cfg_selNetwork = (UWORD)n;
+  }
+}
 
 /*----------------------------------------------------------------------------*/
 static void
@@ -785,6 +794,7 @@ read_config(void)
 				{ "FONT_MINSIZE",         cfg_minsize,   0 },
 				{ "FONT_SIZE",            cfg_fntsize,   0 },
 				{ "FORCE_FRAMECTRL",      cfg_Func,      (long)menu_frm_ctrl    },
+				{ "FORCE_NETWORK_USE",    cfg_inet_type, 0 },
 				{ "GLOBAL_WINCYCLE",      cfg_BOOL,      (long)&cfg_GlobalCycle },
 				{ "GREY_PALETTE",         cfg_BOOL,      (long)&cfg_GreyPalette },
 				{ "HEADER",               cfg_font,      FA(header_font, 0, 0)  },

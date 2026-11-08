@@ -7,7 +7,7 @@
 #include <gemx.h>
 
 #include "global.h"
-#include "image_P.h"
+#include "img-dcdr.h"
 #include "romvdi.h"
 
 static ULONG cube216[216];

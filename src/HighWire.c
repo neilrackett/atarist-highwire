@@ -32,6 +32,7 @@
 
 #include "mbedTLS.h"
 #include "inet.h"
+#include "img-dcdr.h"
 
 #ifdef LATTICE
 	/* set stack size for LATTICE here */
@@ -410,7 +411,9 @@ highwire_ex (void)
     ldg_mbedtls_unload();
     ldg_inet_unload();
 #endif
-		
+
+    decoders_unload();
+  
 		Exit_AV_Protocol();
 		Exit_OLGA();
 

@@ -129,8 +129,8 @@ mime_byString (const char * str, const char ** tail)
 		{ "jpeg", MIME_IMG_JPEG   },
 		{ "gif",  MIME_IMG_GIF    },
 		{ "png",  MIME_IMG_PNG    },
-		{ "jpeg", MIME_IMG_X_XBM  },
-		{ "gif",  MIME_IMG_X_XPM  },
+		{ "xbm",  MIME_IMG_X_XBM  },
+		{ "xpm",  MIME_IMG_X_XPM  },
 		{ "ico",  MIME_IMG_X_ICON },
 		{ NULL, }
 	},

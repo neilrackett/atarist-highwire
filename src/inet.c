@@ -1,3 +1,8 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <mint/sysbind.h>
 
 #include "inet.h"
 #include "Logging.h"
@@ -21,6 +26,8 @@ LDG *libinet = NULL;
 LDG_INET_FTAB *inet_ftab = NULL;
 
 WORD *app_global_inet = NULL;
+
+const char *netname[] = {"mintnet", "magxnet", "sting", "iconnect"};
 
 /*-------------------------------------------------------------------*/
 
@@ -50,15 +57,92 @@ void ldg_inet_init(WORD *gl)
 
 /*-------------------------------------------------------------------*/
 
+typedef struct
+{
+  long id;             /* Identification code */
+  long value;          /* Value of the cookie */
+} COOKJAR;
+
+static BOOL xget_cookie (LONG cookie, void *value)
+{
+  static LONG use_ssystem = -1;
+  COOKJAR *cookiejar;
+  LONG val = -1l;
+  WORD i = 0;
+  
+  if (use_ssystem < 0) { use_ssystem = (Ssystem(0xFFFF, 0l, 0) == 0); }
+  
+  if (use_ssystem)
+  {
+    if (Ssystem(0x0008, cookie, (long)&val) == 0)
+    {
+      if (value != NULL) { *(long *)value = val; }
+      
+      return TRUE;
+    }
+  }
+  else
+  {
+    /* Get pointer to cookie jar */
+    cookiejar = (COOKJAR *)(Setexc(0x05A0/4,(const void (*)(void))-1));
+    
+    if (cookiejar)
+    {
+      for (i = 0; cookiejar[i].id; i++)
+      {
+        if (cookiejar[i].id == cookie)
+        {
+          if (value) { *(long *)value = cookiejar[i].value; }
+          
+          return TRUE;
+        }
+      }
+    }
+  }
+  
+  return FALSE;
+}
+
 LDG *ldg_inet_load()
 {
   if (libinet) { return libinet; }
  
-  const char *libname = "modules\\network.ldg"; // TODO: choose automaticaly the module instead of leaving the user rename files?
+  const char *libpath = "modules\\%s.ldg";
   
-  if (inet_ftab != NULL)
+  char libname[64]; libname[0] = '\0';
+  
+  WORD n = 3;
+  
+  switch (cfg_selNetwork)
   {
-    libinet = ldg_open(libname, app_global_inet); // reluctant to use (CHAR *)
+    case 1: n = 0; break;
+    case 2: n = 1; break;
+    case 3: n = 2; break;
+    case 4: n = 3; break;
+    default:
+      if (xget_cookie(0x4D694E54L, NULL)) /* 'MiNT' */
+      {
+        n = 0;
+      }
+      else if (xget_cookie(0x4D616758L, NULL) && xget_cookie(0x53434B4DL, NULL)) /* 'MagX' and 'SCKM' */
+      {
+        n = 1;
+      }
+      else if (xget_cookie(0x5354694BL, NULL)) /* 'STiK' */
+      {
+        n = 2;
+      }
+      else if (xget_cookie(0x534C4950L, NULL)) /* 'SLIP' */
+      {
+        n = 3;
+      }
+    break;
+  }
+  sprintf (libname, libpath, netname[n]);
+
+  if ((inet_ftab != NULL) && (strlen(libname) > 0))
+  {
+    libinet = ldg_open(libname, app_global_inet);
 
     if (libinet != NULL)
     {

@@ -1,8 +1,11 @@
 some ideas to work on:
-- externalize gif/png/jpg decoder into modules/*.ldg so that
-main core loses weight and decoder loaded only if requested.
-- animated gif (and png?) like in CAB, that can be disabled.
-- study HTTP and CSS support.
+- verify if vscroll with mousewheel is handled.
+- libcmini on HW core?
+- add SVG decoder.
+- crash with bullet <ul><li/></ul> and Life speedo font.
+- animated gif (and png?) like in CAB, that can be disabled?
+- if animation display is achieved, next on webp?
+- study HTTP and CSS NetSurf's libraries (possible port?).
 
 
 Changes fork-20261021 from V. 0.4.8

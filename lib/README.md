@@ -7,9 +7,9 @@ here: the toolchain already has it.
 
 | Library | Version | Origin | Licence |
 |---|---|---|---|
-| `giflib/` | 5.1.4 | `giflib-5.1.4-mint-dev.tar.xz` | MIT, in `COPYING` |
-| `libpng/` | 1.6.34 | `libpng-1.6.34-mint-dev.tar.xz` | libpng, in `LICENSE` |
-| `jpeg/` | 8d | `jpeg-8d-mint-dev.tar.xz` | IJG, under LEGAL ISSUES in `README` |
+| `giflib/` | 5.1.4 | <https://github.com/RajahLone/libpnggif.a> | MIT, in `COPYING` |
+| `libpng/` | 1.8.0 | <https://github.com/pnggroup/libpng> and <https://github.com/RajahLone/libpng.a> | libpng, in `LICENSE` |
+| `jpeg/` | 8d | <https://tho-otto.m68k.eu/sharedlibs.php> | IJG, under LEGAL ISSUES in `README` |
 | `ldg/` | 2.35 | <https://sourceforge.net/projects/ldg/files/> | Lesser GPL in `COPYRIGHT` |
 | `mdebtls/` | 3.6.7 | <https://github.com/Mbed-TLS/mbedtls> | Apache 2.O in `LICENSE` |
 
