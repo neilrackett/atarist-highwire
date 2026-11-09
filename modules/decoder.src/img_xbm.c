@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <ctype.h>
 #include <ldg.h>
 
 #include "../../src/version.h"
@@ -69,19 +70,6 @@ static char * mgets(char *buf, int max)
   return buf;
 }
 
-static int my_isspace(char c)
-{
-  switch (c) { case ' ': case '\t': case '\n': case '\v': case '\f': case '\r': return 1; break; }
-  return 0;
-}
-static int my_isxdigit(char c)
-{
-  if (c >= '0' && c <= '9') { return 1; }
-  if (c >= 'a' && c <= 'f') { return 1; }
-  if (c >= 'A' && c <= 'F') { return 1; }
-  return 0;
-}
-
 static int inraster  = FALSE;
 static int incomment = FALSE;
 
@@ -92,16 +80,16 @@ static char * xmap_read (XMAP xmap, BOOL all)
 	char * end;
 
 	while ((beg = mgets (xmap->Buffer,(int)sizeof(xmap->Buffer))) != NULL) {
-		while (my_isspace (*beg)) beg++;
+		while (isspace (*beg)) beg++;
 		if (*beg) {
 			if (!all && (beg[0] == '/' && beg[1] == '*')
 			         && (end = strstr (beg +2, "*/")) != NULL) {
 				beg = end +2 +1;
-				while (my_isspace (*beg)) beg++;
+				while (isspace (*beg)) beg++;
 				if (!*beg) continue;
 			}
 			end = strchr (beg, '\0');
-			while (my_isspace (end[-1])) end--;
+			while (isspace (end[-1])) end--;
 			*end = '\0';
 
       if (!inraster)
@@ -148,7 +136,7 @@ static BOOL xmap_get_color(XMAP xmap, char *s, char *i, char *val)
   s = p;
   do { s++; } while((*s != 'c') && (*s != 'C'));
   s++;
-  while(my_isspace(*s)) s++;
+  while(isspace(*s)) s++;
   p = s + 1;
   while(*p != '\"') p++;
   *p = '\0';
@@ -245,7 +233,7 @@ BOOL CDECL decXbm_start (IMGINFO info, void * errfunc)
             {
               if (strlen(val))
               {
-                if (val[0] == '#' && my_isxdigit (val[1]))
+                if (val[0] == '#' && isxdigit (val[1]))
                 {
                   map[i] = strtoul (val +1, NULL, 16);
                   ok = TRUE;
@@ -332,7 +320,7 @@ BOOL decXbm_r_bit (IMGINFO info, CHAR * buffer)
 					break;
 				}
 				p += n;
-				while (my_isspace (*p)) p++;
+				while (isspace (*p)) p++;
 				if (x >= 8) {
 					if ((!*p && (p = xmap_read (xmap, FALSE)) == NULL)
 					    || sscanf (p, "0x%x,%n", &v2, &n) != 2) {
@@ -340,7 +328,7 @@ BOOL decXbm_r_bit (IMGINFO info, CHAR * buffer)
 						break;
 					}
 					p += n;
-					while (my_isspace (*p)) p++;
+					while (isspace (*p)) p++;
 				} else {
 					v2 = 0;
 				}
