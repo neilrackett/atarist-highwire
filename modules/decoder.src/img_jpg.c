@@ -24,7 +24,7 @@ BOOL local_FastImages = FALSE;
 
 void (*local_errprintf)(const char *s, ...);
 
-static void _jpeg_shutup (j_common_ptr cinfo, int msg_level);
+static void _jpeg_errmsg (j_common_ptr cinfo, int msg_level);
 static void _jpeg_errjmp (j_common_ptr cinfo);
 
 BOOL CDECL decJpg_start (IMGINFO info, void * errfunc);
@@ -35,11 +35,12 @@ void CDECL decJpg_setFastImage(BOOL set_FastImages);
 
 
 /*----------------------------------------------------------------------------*/
-static void _jpeg_shutup (j_common_ptr cinfo, int msg_level)
+static void _jpeg_errmsg (j_common_ptr cinfo, int msg_level)
 {
-	(void)cinfo;
-	(void)msg_level;
-/*	puts("blah...");*/
+  if (msg_level < 0)
+  {
+    local_errprintf ("decJpg_errmsg(): warning: code: %d.\n", cinfo->err->msg_code);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -47,7 +48,7 @@ static void _jpeg_errjmp (j_common_ptr cinfo)
 {
 	jmp_buf * escape = cinfo->client_data;
 	if (!escape) {
-		//hwUi_fatal ("image::jpeg_error", "got lost!");
+    local_errprintf ("decJpg_errjmp(): escape object is null.\n");
 	} else {
 		longjmp (*escape, TRUE);
 	}
@@ -81,11 +82,11 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
 		if (jpeg) jpeg_destroy_decompress (jpeg);
 		if (jerr) ldg_Free (jerr);
 		if (jpeg) ldg_Free (jpeg);
-		return FALSE;
+		return (header != 0);
 	}
 
 	jpeg->err               = jpeg_std_error (jerr);
-	jpeg->err->emit_message = _jpeg_shutup;
+	jpeg->err->emit_message = _jpeg_errmsg;
 	jpeg->err->error_exit   = _jpeg_errjmp;
 	jpeg->client_data       = &escape;
   
