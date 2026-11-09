@@ -81,7 +81,7 @@ IMGINFO get_decoder (const char * file, UWORD want_w, UWORD want_h)
 			decoder = decoder_chain;
 			while (decoder)
       {
-        if (decoder != found)
+        if ((decoder != found) && (decoder != &_decoder_xmp)) // don't test on the mime found one and xbm/xpm decoder
         {
           if (decoder->libimg == NULL)
           {
