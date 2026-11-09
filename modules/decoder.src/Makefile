@@ -103,7 +103,7 @@ img_ico: ; $(MAKE) TARGET=imgd-ico.ldg CFILES=img_ico.c \
                    LIBS="-L$(CMINI)$(CPUDIR) -L../../lib/ldg/lib.gcc$(CPUDIR) -lm -lldg -lcmini -lgcc -lcmini"
 
 img_jpg: ; $(MAKE) TARGET=imgd-jpg.ldg CFILES=img_jpg.c \
-									 INCLUDE=-"I../../lib/jpeg/include -I../../lib/ldg/include -I../../lib/libcmini/include" \
+									 INCLUDE="-I../../lib/jpeg/include -I../../lib/ldg/include -I../../lib/libcmini/include" \
                    LDFLAGS="-s -nostdlib $(CMINI)/crt0.o" \
                    LIBS="-L$(CMINI)$(CPUDIR) -L../../lib/jpeg$(CPUDIR) -L../../lib/ldg/lib.gcc$(CPUDIR) -ljpeg -lm -lldg -lcmini -lgcc -lcmini"
 
