@@ -1,11 +1,14 @@
-Since version 0.4.8 HighWire gets its online capability by loading an external
-LDG located in its folder ./modules/. Choose the adequate file for your
-prefered IP-stack and rename it into 'network.ldg' (or symlink to it, on a more
-comfortable filesystem).
-
-HighWire will always try to load 'network.ldg' from this directory;  if this
-doesn't exist, HighWire will give up and doesn't support any online stuff for
-this session.
-
-STiK2 uses the same code source as STinG, so if you have STiK2 layer installed,
-then use sting.ldg (or the default network.ldg).
+About network module:
+- user don't have to rename the needed layer into network.ldg
+- selection is automatic, detection uses the cookie jar entries
+- if user want to force the choice of layer, use FORCE_NETWORK_USE
+  setting in the highwire.cfg
+  
+About the image decoders modules (imgd-*.ldg):
+- externalized to reduce memory footprint, specific module is loaded
+  if needed, since mime detection (or all if the format is unknown).
+- user can disable a module by renaming its extension .ldg into .ldz
+  such as now very rare xbm/xpm images, or avoid CPU consumption
+  on low-end stock AtariST machine discarding jpg images.
+- externalization makes easier future decoders additions and
+  maintenance.
