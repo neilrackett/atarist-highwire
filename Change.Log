@@ -1,6 +1,7 @@
 some ideas to work on:
 - verify if vscroll with mousewheel is handled.
-- libcmini on HW core?
+- new tries to compile HW core with libcmini (issues
+  were with cache saving, Dopendir, stat conflict, etc)
 - add SVG decoder.
 - crash with bullet <ul><li/></ul> and Life speedo font.
 - animated gif (and png?) like in CAB, that can be disabled?
