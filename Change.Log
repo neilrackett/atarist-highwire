@@ -9,6 +9,21 @@ some ideas to work on:
 - study HTTP and CSS NetSurf's libraries (possible port?).
 
 
+Changes fork-20261110 from V. 0.4.8
+
+  - image decoders externalized into modules/imgd-*.ldg and linked
+    with libcmini, to reduce memory footprint.
+    decoders can be disabled by renaming .ldg extension into .ldz
+  - jpeg/gif/png libraries are updated and secured for memory under MagiC.
+  - xpm "image" decoder seems to work now (multilined comment in header,
+    tricky sscanf, etc), though files must be well written.
+  - user don't have to rename internet layer, HighWire looks into the
+    cookie jar to select automatically the adequate module.
+  - simplified builts and archives:
+    1) 68000, no FPU
+    1) 68020 to 68060 with FPU
+    1) ColdFire V4e
+  
 Changes fork-20261021 from V. 0.4.8
 
   - fixed very bad display when bitmap fonts are used while NVDI
