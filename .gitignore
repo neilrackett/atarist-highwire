@@ -6,7 +6,6 @@ dist/
 *.o
 *.a
 !/lib/**/*.a
-!modules/libcmini/lib/**/*.a
 *.ovl
 *.ldg
 !iconnect.ldg
@@ -16,3 +15,4 @@ tmp/
 .kilo/
 *.xcodeproj/
 DerivedData/
+releases/
