@@ -135,11 +135,11 @@ void * decoder_load_image(IMGINFO info, const char * image_file)
     
     if (len > 0)
     {
-      ptr = (void *)ldg_Calloc(1, (int32_t)(len + (size_t)256));
+      ptr = (void *)ldg_Calloc(1, (LONG)(len + (size_t)256));
 
       if (ptr)
       {
-        if (fread(ptr, sizeof(int8_t), len, f) == len)
+        if (fread(ptr, sizeof(CHAR), len, f) == len)
         {
           info->_priv_load = ptr;
           info->_priv_size = (unsigned int)len;

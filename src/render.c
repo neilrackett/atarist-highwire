@@ -4621,7 +4621,7 @@ parse_html (void * arg, long invalidated)
 		}
 	}
 	logprintf(LOG_BLUE, "%ld ms for '%s%s'\n",
-	          (clock() - start_clock) * 1000 / CLK_TCK,
+	          (LONG)(clock() - start_clock) * 1000 / CLK_TCK,
 	          location_Path (frame->Location, NULL), frame->Location->File);
 	delete_parser (parser);
 
@@ -4722,7 +4722,7 @@ parse_plain (void * arg, long invalidated)
 		}
 	}
 	logprintf (LOG_BLUE, "%ld ms for '%s%s'\n",
-	           (clock() - start_clock) * 1000 / CLK_TCK,
+	           (LONG)(clock() - start_clock) * 1000 / CLK_TCK,
 	          location_Path (frame->Location, NULL), frame->Location->File);
 	delete_parser (parser);
 
