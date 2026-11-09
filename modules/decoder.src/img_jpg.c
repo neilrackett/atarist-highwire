@@ -58,8 +58,8 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
 {
 	jmp_buf escape;
 	
-	volatile JPEG_DEC jpeg = NULL;
-	volatile JPEG_ERR jerr = NULL;
+  JPEG_DEC jpeg;
+  JPEG_ERR jerr;
 	int header = 0;
 	
   local_errprintf = errfunc;
@@ -74,20 +74,21 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
 	}
 	
 	if (setjmp (escape)) {
+		local_errprintf ("decJpg_start(): aborted at step %d.\n", header);
 		if (header >= 2) {
-			jpeg_abort_decompress (jpeg);
+			if (jpeg) jpeg_abort_decompress (jpeg);
 		}
-		jpeg_destroy_decompress (jpeg);
-		ldg_Free (jerr);
-		ldg_Free (jpeg);
-		return (header != 0);
+		if (jpeg) jpeg_destroy_decompress (jpeg);
+		if (jerr) ldg_Free (jerr);
+		if (jpeg) ldg_Free (jpeg);
+		return FALSE;
 	}
 
 	jpeg->err               = jpeg_std_error (jerr);
 	jpeg->err->emit_message = _jpeg_shutup;
 	jpeg->err->error_exit   = _jpeg_errjmp;
 	jpeg->client_data       = &escape;
-	
+  
 	jpeg_create_decompress (jpeg);
 	jpeg_mem_src           (jpeg, info->_priv_load, (unsigned long)info->_priv_size);
 	jpeg_read_header       (jpeg, TRUE);
@@ -112,7 +113,7 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
 	}
 
 	jpeg->dct_method          = JDCT_IFAST;
-#ifdef __M68881__
+#ifdef __HAVE_68881__
 	jpeg->do_fancy_upsampling = TRUE;
 #else
 	jpeg->do_fancy_upsampling = FALSE;
@@ -149,7 +150,7 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
 /*	info->PalStep    = 0; */
 	info->Transp     = -1;
 /*	info->Interlace  = 0; */
-	
+
 	jpeg->client_data = NULL; /* unset jump buffer */
 	
 	return TRUE;
@@ -159,8 +160,9 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
 BOOL CDECL decJpg_read (IMGINFO info, CHAR * buffer)
 {
 	JPEG_DEC jpeg = info->_priv_data;
-
-	return (jpeg_read_scanlines (info->_priv_data, (JSAMPROW*)&buffer, 1) < jpeg->output_height);
+  if (!jpeg) { return FALSE; }
+  jpeg_read_scanlines (jpeg, (JSAMPROW*)&buffer, 1);
+	return (jpeg->output_scanline < jpeg->output_height);
 }
 
 /*----------------------------------------------------------------------------*/
