@@ -20,7 +20,7 @@ CPU = 68000
 DEFS =
 
 OPTFLAGS = -funsigned-char \
-       -fomit-frame-pointer -O2 -fstrength-reduce -DICO_DBG -DXBM_DBG
+       -fomit-frame-pointer -O2 -fstrength-reduce #-DICO_DBG -DXBM_DBG
 
 ifeq ($(CPU),5475)
 	OPTS = $(CPU:%=-mcpu=%) $(OPTFLAGS)
