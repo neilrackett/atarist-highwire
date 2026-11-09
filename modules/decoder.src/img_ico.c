@@ -431,7 +431,7 @@ void CDECL decIco_quit (IMGINFO info)
 
 const char* CDECL decIco_info()
 {
-	return "HighWire's icon decoder " _HIGHWIRE_VERSION_;
+	return "HighWire's (old) ICO decoder " _HIGHWIRE_VERSION_;
 }
 
 /*----------------------------------------------------------------------------*/

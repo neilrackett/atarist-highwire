@@ -402,7 +402,7 @@ void CDECL decXbm_quit (IMGINFO info)
 
 const char* CDECL decXbm_info()
 {
-	return "HighWire's BMP decoder " _HIGHWIRE_VERSION_;
+	return "HighWire's XBM and XPM decoder " _HIGHWIRE_VERSION_;
 }
 
 /*----------------------------------------------------------------------------*/
