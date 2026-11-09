@@ -134,17 +134,17 @@ about_highwire (TEXTBUFF current, WORD link_color)
   *(++w) = render_text (current, "Core:\005\022" _HIGHWIRE_VERSION_ "\020\n");
   tab    = max (tab, (*w)->word_width);
 	
+  #ifdef __MINTLIB__
+		sprintf (buf, "MiNTlib:\005\022%i.%02i.%i\020\005" __MINTLIB_BETATAG__ "\r", __MINTLIB_MAJOR__, __MINTLIB_MINOR__, __MINTLIB_REVISION__);
+    *(++w) = render_text (current, buf);
+    tab    = max (tab, (*w)->word_width);
+	#endif
+
   #ifdef __GEMLIB_MAJOR__
 	  sprintf (buf, "GEMlib:\005\022%i.%02i.%i\020\005" __GEMLIB_BETATAG__ "\r", __GEMLIB_MAJOR__, __GEMLIB_MINOR__, __GEMLIB_REVISION__);
 	  *(++w) = render_text (current, buf);
     tab    = max (tab, (*w)->word_width);
   #endif
-	
-	#ifdef __MINTLIB__
-		sprintf (buf, "MiNTlib:\005\022%i.%02i.%i\020\005" __MINTLIB_BETATAG__ "\r", __MINTLIB_MAJOR__, __MINTLIB_MINOR__, __MINTLIB_REVISION__);
-    *(++w) = render_text (current, buf);
-    tab    = max (tab, (*w)->word_width);
-	#endif
 	
 	#ifdef __CFLIB__
 		sprintf (buf, "CFlib:\005\022%i.%02i.%i\020\005" __CFLIB_BETATAG__ "\r", __CFLIB_MAJOR__, __CFLIB_MINOR__, __CFLIB_REVISION__);
