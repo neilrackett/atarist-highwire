@@ -421,7 +421,7 @@ PROC LibFunc[] =
   {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decXbm_setFastImage},
 };
 
-LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "BMP decoder for HighWire", 1 } };
+LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "XBM/XPM decoder for HighWire", 1 } };
 
 int main(void)
 {
