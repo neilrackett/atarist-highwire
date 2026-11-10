@@ -110,7 +110,10 @@ img_jpg: ; $(MAKE) TARGET=imgd-jpg.ldg CFILES=img_jpg.c \
 img_png: ; $(MAKE) TARGET=imgd-png.ldg CFILES=img_png.c \
 									 INCLUDE="-I../../lib/libpng/include -I../../lib/ldg/include -I../../lib/libcmini/include" \
                    LDFLAGS="-s -nostdlib $(CMINI)/crt0.o" \
-                   LIBS="-L$(CMINI)$(CPUDIR) -L../../lib/libpng$(CPUDIR) -L../../lib/ldg/lib.gcc$(CPUDIR) -lpng -lz -lm -lldg -lcmini -lgcc -lcmini"
+                   LIBS="-L$(CMINI) -L../../lib/libpng$(CPUDIR) -L../../lib/ldg/lib.gcc$(CPUDIR) -lpng -lz -lm -lldg -lcmini -lgcc -lcmini"
+# issue when libpng-68020-80 is linked to libcmini-68020-80, so here targets libpng-68020-80/-5475 are linked only with libcmini-68000
+# if you want a pure ColdFire target (EmuTOS-v4e without 68Kemu), please tell me or append $(CPUDIR) to -L$(CMINI) if you are able to make it.
+# to avoid make all and just do it for imgd-png.ldg -> make -C modules/decoder.src CPU=5475 img_png
 
 img_xbm: ; $(MAKE) TARGET=imgd-xbm.ldg CFILES=img_xbm.c \
                    INCLUDE="-I../../lib/ldg/include -I../../lib/libcmini/include" \
