@@ -274,9 +274,9 @@ all::
 	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_V4E)/modules/imgd-xbm.ldg
 
 	mkdir -p $(RELEASEDIR)
-	(cwd=`pwd`; cd $(DISTDIR_68K); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-68k.zip . -x ".DS_Store" -x "__MACOSX")
-	(cwd=`pwd`; cd $(DISTDIR_020); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-020.zip . -x ".DS_Store" -x "__MACOSX")
-	(cwd=`pwd`; cd $(DISTDIR_V4E); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-v4e.zip . -x ".DS_Store" -x "__MACOSX")
+	(cwd=`pwd`; cd $(DISTDIR_68K); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-68k.zip . -x "*/.DS_Store" -x "__MACOSX")
+	(cwd=`pwd`; cd $(DISTDIR_020); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-020.zip . -x "*/.DS_Store" -x "__MACOSX")
+	(cwd=`pwd`; cd $(DISTDIR_V4E); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-v4e.zip . -x "*/.DS_Store" -x "__MACOSX")
 
 #
 # dependencies
