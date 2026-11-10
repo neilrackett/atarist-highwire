@@ -184,22 +184,32 @@ all::
 	cp -a rsc/deskicon.rsc rsc/highwire.rsc $(DISTDIR_V4E)
 
 	mkdir -p $(DISTDIR_68K)/doc
-	cp -a docs/HIGHWIRE.DOC docs/hotkeys.txt $(DISTDIR_68K)/doc
-	cp -a lib/giflib/COPYING $(DISTDIR_68K)/doc/giflib.txt
-	cp -a lib/libpng/LICENSE $(DISTDIR_68K)/doc/libpng.txt
-	cp -a lib/jpeg/README $(DISTDIR_68K)/doc/libjpeg.txt
-	cp -a Change.Log LICENSE $(DISTDIR_68K)/doc
+	cp -a change.log $(DISTDIR_68K)/doc
+	cp -a docs/highwire.txt $(DISTDIR_68K)/doc
+	cp -a docs/hotkeys.txt $(DISTDIR_68K)/doc
+	mkdir -p $(DISTDIR_68K)/doc/archives
+	cp -a docs/compile.old $(DISTDIR_68K)/doc/archives/compile.txt
+	cp -a docs/history1.txt $(DISTDIR_68K)/doc/archives
+	cp -a docs/history2.txt $(DISTDIR_68K)/doc/archives
+	mkdir -p $(DISTDIR_68K)/doc/licenses
+	cp -a lib/giflib/COPYING $(DISTDIR_68K)/doc/licenses/giflib.txt
+	cp -a lib/libpng/LICENSE $(DISTDIR_68K)/doc/licenses/libpng.txt
+	cp -a lib/jpeg/README $(DISTDIR_68K)/doc/licenses/libjpeg.txt
+	cp -a LICENSE $(DISTDIR_68K)/doc/licenses/highwire.txt
+	
 	mkdir -p $(DISTDIR_68K)/html
 	cp -pvr html/. $(DISTDIR_68K)/html
-	mkdir -p $(DISTDIR_68K)/modules
 	
 	mkdir -p $(DISTDIR_68K)/example.cfg
 	cp -a example.cfg/highwire.cfg $(DISTDIR_68K)/example.cfg
 
 	cp -a $(DISTDIR_68K)/doc $(DISTDIR_68K)/html $(DISTDIR_68K)/example.cfg $(DISTDIR_020)
 	cp -a $(DISTDIR_68K)/doc $(DISTDIR_68K)/html $(DISTDIR_68K)/example.cfg $(DISTDIR_V4E)
-	
+
 	$(MAKE) -C modules/network.src clean
+
+	mkdir -p $(DISTDIR_68K)/modules
+	cp -a modules/readme.txt $(DISTDIR_68K)/modules/readme.txt
 	
 	$(MAKE) -C modules/network.src CPU=68000 LDG_TYPE=USE_MINTNET
 	mv modules/network.src/network.ldg $(DISTDIR_68K)/modules/mintnet.ldg
@@ -211,6 +221,7 @@ all::
 	cp modules/network.src/iconnect.ldg $(DISTDIR_68K)/modules/iconnect.ldg
 
 	mkdir -p $(DISTDIR_020)/modules
+	cp -a modules/readme.txt $(DISTDIR_020)/modules/readme.txt
 
 	$(MAKE) -C modules/network.src CPU=68020-60 LDG_TYPE=USE_MINTNET
 	mv modules/network.src/network.ldg $(DISTDIR_020)/modules/mintnet.ldg
@@ -222,6 +233,7 @@ all::
 	cp modules/network.src/iconnect.ldg $(DISTDIR_020)/modules/iconnect.ldg
 
 	mkdir -p $(DISTDIR_V4E)/modules
+	cp -a modules/readme.txt $(DISTDIR_V4E)/modules/readme.txt
 
 	$(MAKE) -C modules/network.src CPU=5475 LDG_TYPE=USE_MINTNET
 	mv modules/network.src/network.ldg $(DISTDIR_V4E)/modules/mintnet.ldg

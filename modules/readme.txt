@@ -5,8 +5,9 @@ About network module:
   setting in the highwire.cfg
   
 About the image decoders modules (imgd-*.ldg):
-- externalized to reduce memory footprint, specific module is loaded
-  if needed, since mime detection (or all if the format is unknown).
+- externalized from HighWire's core to reduce memory footprint,
+  specific module is loaded if needed, since mime detection
+  (or all if the format is unknown).
 - user can disable a module by renaming its extension .ldg into .ldz
   such as now very rare xbm/xpm images, or avoid CPU consumption
   on low-end stock AtariST machine discarding jpg images.

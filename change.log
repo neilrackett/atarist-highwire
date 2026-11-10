@@ -1,15 +1,17 @@
 some ideas to work on:
-- verify if vscroll with mousewheel is handled.
 - new tries to compile HW core with libcmini (issues
-  were with cache saving, Dopendir, stat conflict, etc)
-- add SVG decoder.
+  were with cache saving, Dopendir, stat conflict, etc).
+- HYP documentation (at least for keys shortcuts).
+- remove PureC and LatticeC parts?
+- add BMP decoder and extend ICO decoder (for bookmarks?).
+- add SVG decoder (NetSurf's seems a good candidate).
 - crash with bullet <ul><li/></ul> and Life speedo font.
 - animated gif (and png?) like in CAB, that can be disabled?
 - if animation display is achieved, next on webp?
 - study HTTP and CSS NetSurf's libraries (possible port?).
 
 
-Changes fork-20261110 from V. 0.4.8
+Changes 0.4.9 (fork-20261110, unofficial, nicknamed "HughWire")
 
   - image decoders externalized into modules/imgd-*.ldg and linked
     with libcmini, to reduce memory footprint.
@@ -18,7 +20,8 @@ Changes fork-20261110 from V. 0.4.8
   - xpm "image" decoder seems to work now (multilined comment in header,
     tricky sscanf, etc), though files must be well written.
   - user don't have to rename internet layer, HighWire looks into the
-    cookie jar to select automatically the adequate module.
+    cookie jar to select automatically the adequate module. A setting
+    in the cfg file allows to choose/force it.
   - simplified builts and archives:
     1) 68000, no FPU
     1) 68020 to 68060 with FPU
