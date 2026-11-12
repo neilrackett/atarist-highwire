@@ -195,6 +195,7 @@ all::
 	cp -a lib/giflib/COPYING $(DISTDIR_68K)/doc/licenses/giflib.txt
 	cp -a lib/libpng/LICENSE $(DISTDIR_68K)/doc/licenses/libpng.txt
 	cp -a lib/jpeg/README $(DISTDIR_68K)/doc/licenses/libjpeg.txt
+	cp -a lib/libnsbmp/COPYING $(DISTDIR_68K)/doc/licenses/libnsbmp.txt
 	cp -a LICENSE $(DISTDIR_68K)/doc/licenses/highwire.txt
 	
 	mkdir -p $(DISTDIR_68K)/html
@@ -250,6 +251,8 @@ all::
 	mv modules/decoder.src/imgd-png.ldg $(DISTDIR_68K)/modules/imgd-png.ldg
 	$(MAKE) -C modules/decoder.src CPU=68000 img_xbm
 	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_68K)/modules/imgd-xbm.ldg
+	$(MAKE) -C modules/decoder.src CPU=68000 img_bmp
+	mv modules/decoder.src/imgd-bmp.ldg $(DISTDIR_68K)/modules/imgd-bmp.ldg
 
 	$(MAKE) -C modules/decoder.src CPU=68020-60 img_gif
 	mv modules/decoder.src/imgd-gif.ldg $(DISTDIR_020)/modules/imgd-gif.ldg
@@ -261,6 +264,8 @@ all::
 	mv modules/decoder.src/imgd-png.ldg $(DISTDIR_020)/modules/imgd-png.ldg
 	$(MAKE) -C modules/decoder.src CPU=68020-60 img_xbm
 	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_020)/modules/imgd-xbm.ldg
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_bmp
+	mv modules/decoder.src/imgd-bmp.ldg $(DISTDIR_020)/modules/imgd-bmp.ldg
 
 	$(MAKE) -C modules/decoder.src CPU=5475 img_gif
 	mv modules/decoder.src/imgd-gif.ldg $(DISTDIR_V4E)/modules/imgd-gif.ldg
@@ -272,6 +277,8 @@ all::
 	mv modules/decoder.src/imgd-png.ldg $(DISTDIR_V4E)/modules/imgd-png.ldg
 	$(MAKE) -C modules/decoder.src CPU=5475 img_xbm
 	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_V4E)/modules/imgd-xbm.ldg
+	$(MAKE) -C modules/decoder.src CPU=5475 img_bmp
+	mv modules/decoder.src/imgd-bmp.ldg $(DISTDIR_V4E)/modules/imgd-bmp.ldg
 
 	mkdir -p $(RELEASEDIR)
 	(cwd=`pwd`; cd $(DISTDIR_68K); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-68k.zip . -x "*/.DS_Store" -x "__MACOSX")

@@ -3,8 +3,9 @@ some ideas to work on:
   were with cache saving, Dopendir, stat conflict, etc).
 - HYP documentation (at least for keys shortcuts).
 - remove PureC and LatticeC parts?
-- add BMP decoder and extend ICO decoder (for bookmarks?).
-- add SVG decoder (NetSurf's seems a good candidate).
+- ICO decoder: replace HW's code by NetSurf's libnsbmp.
+- favicon.ico for bookmarks?
+- add SVG decoder (candidate: PlutoVG+PlutoSVG).
 - crash with bullet <ul><li/></ul> and Life speedo font.
 - animated gif (and png?) like in CAB, that can be disabled?
 - if animation display is achieved, next on webp?

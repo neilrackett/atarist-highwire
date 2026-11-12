@@ -1,185 +1,191 @@
+
 #include <stddef.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <ldg.h>
 
 #include "../../src/global.h"
 #include "../../src/img-dcdr.h"
 
-#define XMD_H /* avoid redefining INT16 and INT32, already done in gemlib */
-#include <setjmp.h>
-#undef INLINE
-#undef LOCAL
-#undef GLOBAL
-#include <jpeglib.h>
-#undef XMD_H
+#include <libnsbmp.h>
 
-#define STRINGIFY(x) #x
-#define VERSION_LIB(A,B) "LibJPEG decoder " STRINGIFY(A) "." STRINGIFY(B) ".0  (Independent JPEG Group)"
+#define BYTES_PER_PIXEL sizeof(ULONG)
+#define TRANSPARENT_COLOR 0xffffffff
 
-typedef struct jpeg_decompress_struct * JPEG_DEC;
-typedef struct jpeg_error_mgr         * JPEG_ERR;
 
 BOOL local_FastImages = FALSE;
 
 void (*local_errprintf)(const char *s, ...);
 
-static void _jpeg_errmsg (j_common_ptr cinfo, int msg_level);
-static void _jpeg_errjmp (j_common_ptr cinfo);
+static void *bitmap_create(int width, int height, unsigned int state);
+static unsigned char *bitmap_get_buffer(void *bitmap);
+static void bitmap_destroy(void *bitmap);
 
-BOOL CDECL decJpg_start (IMGINFO info, void * errfunc);
-BOOL CDECL decJpg_read (IMGINFO info, CHAR * buffer);
-void CDECL decJpg_quit (IMGINFO info);
-const char* CDECL decJpg_info(void);
-void CDECL decJpg_setFastImage(BOOL set_FastImages);
+BOOL CDECL decBmp_start (IMGINFO info, void * errfunc);
+void CDECL blend_row (IMGINFO info, CHAR * row);
+BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer);
+void CDECL decBmp_quit (IMGINFO info);
+const char* CDECL decBmp_info(void);
+void CDECL decBmp_setFastImage(BOOL set_FastImages);
 
 
 /*----------------------------------------------------------------------------*/
-static void _jpeg_errmsg (j_common_ptr cinfo, int msg_level)
+
+static void *bitmap_create(int width, int height, unsigned int state)
 {
-  if (msg_level < 0)
+  (void) state;
+	/* Ensure a stupidly large bitmap is not created */
+	if (width > 4096 || height > 4096) { return NULL; }
+  
+  return ldg_Calloc(width * height, BYTES_PER_PIXEL);
+}
+
+static unsigned char *bitmap_get_buffer(void *bitmap) { if (bitmap) { return bitmap; } return NULL; }
+
+static void bitmap_destroy(void *bitmap) { if (bitmap) { ldg_Free(bitmap); } }
+
+static void warning(const char *context, bmp_result code)
+{
+  switch (code)
   {
-    local_errprintf ("decJpg_errmsg(): warning: code: %d.\n", cinfo->err->msg_code);
+    case BMP_INSUFFICIENT_MEMORY: local_errprintf("%s failed: BMP_INSUFFICIENT_MEMORY\n", context); break;
+    case BMP_INSUFFICIENT_DATA:   local_errprintf("%s failed: BMP_INSUFFICIENT_DATA\n", context); break;
+    case BMP_DATA_ERROR:          local_errprintf("%s failed: BMP_DATA_ERROR\n", context); break;
+    default:                      local_errprintf("%s failed: BMP unknown code %i\n", context, code);
   }
 }
 
-/*----------------------------------------------------------------------------*/
-static void _jpeg_errjmp (j_common_ptr cinfo)
-{
-	jmp_buf * escape = cinfo->client_data;
-	if (!escape) {
-    local_errprintf ("decJpg_errjmp(): escape object is null.\n");
-	} else {
-		longjmp (*escape, TRUE);
-	}
-}
+static bmp_bitmap_callback_vt bitmap_callbacks = { bitmap_create, bitmap_destroy, bitmap_get_buffer };
+
+static UWORD bmp_line_read;
 
 /*----------------------------------------------------------------------------*/
-BOOL CDECL decJpg_start (IMGINFO info, void * errfunc)
+BOOL CDECL decBmp_start (IMGINFO info, void * errfunc)
 {
-	jmp_buf escape;
-	
-  JPEG_DEC jpeg;
-  JPEG_ERR jerr;
-	int header = 0;
-	
+	BOOL       res  = TRUE;
+  bmp_result code = BMP_OK;
+  
+  bmp_line_read = 0;
+  
   local_errprintf = errfunc;
  
-  if ((jpeg = ldg_Calloc (1, sizeof(struct jpeg_decompress_struct))) == NULL ||
-      (jerr = ldg_Calloc (1, sizeof(struct jpeg_error_mgr)))         == NULL)
+  bmp_image *bmp = ldg_Calloc (1, sizeof(struct bmp_image));
+ 
+  if (bmp == NULL) { warning("bmp_image_alloc", BMP_INSUFFICIENT_MEMORY); res = FALSE; goto cleanup; }
+
+  bmp_create(bmp, &bitmap_callbacks);
+
+  code = bmp_analyse(bmp, (size_t)info->_priv_size, info->_priv_load);
+  if (code != BMP_OK) { warning("bmp_analyse", code); res = FALSE; goto cleanup; }
+
+  //code = bmp_decode(bmp);
+  code = bmp_decode_trans(bmp, TRANSPARENT_COLOR);
+
+  if (code != BMP_OK)
   {
-		local_errprintf ("decJpg_start(): low memory.\n");
-		if (jerr) ldg_Free (jerr);
-		if (jpeg) ldg_Free (jpeg);
-		return FALSE;
-	}
-	
-	if (setjmp (escape)) {
-		local_errprintf ("decJpg_start(): aborted at step %d.\n", header);
-		if (header >= 2) {
-			if (jpeg) jpeg_abort_decompress (jpeg);
-		}
-		if (jpeg) jpeg_destroy_decompress (jpeg);
-		if (jerr) ldg_Free (jerr);
-		if (jpeg) ldg_Free (jpeg);
-		return (header != 0);
-	}
+    warning("bmp_decode", code);
+    /* allow partially decoded images */
+    if ((code != BMP_INSUFFICIENT_DATA) && (code != BMP_DATA_ERROR)) { res = FALSE; goto cleanup; }
+  }
 
-	jpeg->err               = jpeg_std_error (jerr);
-	jpeg->err->emit_message = _jpeg_errmsg;
-	jpeg->err->error_exit   = _jpeg_errjmp;
-	jpeg->client_data       = &escape;
-  
-	jpeg_create_decompress (jpeg);
-	jpeg_mem_src           (jpeg, info->_priv_load, (unsigned long)info->_priv_size);
-	jpeg_read_header       (jpeg, TRUE);
-
-	/* Shown at half the size or less, the IDCT can produce that directly:
-	 * the scaling below would only throw the extra pixels away, at the cost
-	 * of decoding and converting them first.  Take the smallest of 1/8, 1/4
-	 * and 1/2 that still covers the size asked for; a side not asked for is
-	 * 0, which any size covers. */
-	if (info->WantW || info->WantH) {
-		unsigned d = 8;
-		while (d > 1 && ((jpeg->image_width  + d -1) / d < info->WantW ||
-		                 (jpeg->image_height + d -1) / d < info->WantH)) {
-			d /= 2;
-		}
-		if (d > 1) {
-			jpeg->scale_num   = 1;
-			jpeg->scale_denom = d;
-			info->FullW = jpeg->image_width;
-			info->FullH = jpeg->image_height;
-		}
-	}
-
-	jpeg->dct_method          = JDCT_IFAST;
-#ifdef __HAVE_68881__
-	jpeg->do_fancy_upsampling = TRUE;
-#else
-	jpeg->do_fancy_upsampling = FALSE;
+#ifdef BMP_DBG
+  local_errprintf("bmp size: %d x %d px\n", bmp->width, bmp->height);
 #endif
-	
-	switch (jpeg->out_color_space) {
-		case JCS_RGB:
-			info->NumComps = 3;
-			break;
-		case JCS_GRAYSCALE:
-			info->NumComps = 1;
-			break;
-		default: ;
-			jpeg->out_color_space = JCS_RGB;
-			info->NumComps = jpeg->out_color_components = 3;
-			break;
-	}
-	header = 1;
-	jpeg_start_decompress  (jpeg);
-	header = 2;
-	
-	info->_priv_data = jpeg;
-/*	info->_priv_more = NULL; */
-	info->read       = decJpg_read;
-	info->quit       = decJpg_quit;
-	info->ImgWidth   = jpeg->output_width;
-	info->ImgHeight  = jpeg->output_height;
+
+	info->_priv_data = bmp;
+  //info->_priv_more = NULL;
+	info->read       = decBmp_read;
+	info->quit       = decBmp_quit;
+	info->ImgWidth   = bmp->width;
+	info->ImgHeight  = bmp->height;
 	info->BitDepth   = 8;
-/*	info->NumColors  = 0;    0-values needn't to be set */
-/*	info->Palette    = NULL; */
-/*	info->PalRpos    = 0; */
-/*	info->PalGpos    = 0; */
-/*	info->PalBpos    = 0; */
-/*	info->PalStep    = 0; */
-	info->Transp     = -1;
-/*	info->Interlace  = 0; */
-
-	jpeg->client_data = NULL; /* unset jump buffer */
+  info->NumComps   = 3;
+  info->NumColors  = 0;
+  //info->Palette    = NULL;
+  //info->PalRpos    = 0;
+  //info->PalGpos    = 0;
+  //info->PalBpos    = 0;
+  //info->PalStep    = 0;
+	info->Alpha      = TRUE;
+  info->Transp     = -1;
+  //info->Interlace  = 0;
 	
-	return TRUE;
+cleanup:
+  if (!res) { bmp_finalise(bmp); }
+ 
+  return res;
 }
 
 /*----------------------------------------------------------------------------*/
-BOOL CDECL decJpg_read (IMGINFO info, CHAR * buffer)
+/* Composite a row of RGBA over info->AlphaBg, in place, leaving the RGB the
+ * rasterizers expect.  Most pixels are fully opaque or fully clear, so only
+ * the edges pay for the multiplies.
+*/
+void blend_row (IMGINFO info, CHAR * row)
 {
-	JPEG_DEC jpeg = info->_priv_data;
-  if (!jpeg) { return FALSE; }
-  jpeg_read_scanlines (jpeg, (JSAMPROW*)&buffer, 1);
-	return (jpeg->output_scanline < jpeg->output_height);
-}
+	const UWORD     r_bg = (UWORD)(info->AlphaBg >>16) & 0xFF;
+	const UWORD     g_bg = (UWORD)(info->AlphaBg >> 8) & 0xFF;
+	const UWORD     b_bg = (UWORD)(info->AlphaBg     ) & 0xFF;
+	/* FAST_IMAGES cuts at half way, so nothing is left to blend */
+	const UWORD     solid = (local_FastImages ? 128 : 255);
+	const UWORD     clear = (local_FastImages ? 127 :   0);
+	unsigned char * src  = (unsigned char *)row;
+	unsigned char * dst  = src;
+	UWORD           n    = info->ImgWidth;
 
-/*----------------------------------------------------------------------------*/
-void CDECL decJpg_quit (IMGINFO info)
-{
-	JPEG_DEC jpeg = info->_priv_data;
-	if (jpeg) {
-		jmp_buf escape;
-		jpeg->client_data = &escape;
-		if (!setjmp (escape)) {
-			jpeg_finish_decompress (jpeg);
+	while (n--) {
+		UWORD a = src[3];
+		if (a >= solid) {
+			dst[0] = src[0];
+			dst[1] = src[1];
+			dst[2] = src[2];
+		} else if (a <= clear) {
+			dst[0] = r_bg;
+			dst[1] = g_bg;
+			dst[2] = b_bg;
+		} else {
+			/* (x + (x >>8)) >>8 divides by 255, rounded, once x carries +128 */
+			UWORD b = 255 - a, x;
+			x = (UWORD)(src[0] * a + r_bg * b + 128); dst[0] = (x + (x >>8)) >>8;
+			x = (UWORD)(src[1] * a + g_bg * b + 128); dst[1] = (x + (x >>8)) >>8;
+			x = (UWORD)(src[2] * a + b_bg * b + 128); dst[2] = (x + (x >>8)) >>8;
 		}
-		jpeg->client_data = NULL;
-		jpeg_destroy_decompress (jpeg);
-		ldg_Free (jpeg->err);
-		ldg_Free (jpeg);
+		src += 4;
+		dst += 3;
+	}
+}
+
+/*----------------------------------------------------------------------------*/
+BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer)
+{
+  bmp_image *bmp = info->_priv_data;
+  
+  if (!bmp) { return FALSE; }
+  if (bmp_line_read >= bmp->height) { return FALSE; }
+  if (!bmp->decoded) { return FALSE; }
+
+  CHAR *ptr = (CHAR *)bmp->bitmap;
+
+  ptr += (bmp_line_read * bmp->width) * BYTES_PER_PIXEL;
+
+  memcpy(buffer, (const void *)ptr, (size_t)(bmp->width * BYTES_PER_PIXEL));
+  
+  bmp_line_read++;
+
+	if (info->Alpha) { blend_row (info, buffer); }
+
+  return (bmp_line_read < bmp->height);
+}
+
+/*----------------------------------------------------------------------------*/
+void CDECL decBmp_quit (IMGINFO info)
+{
+  bmp_image *bmp = info->_priv_data;
+	if (bmp)
+  {
+    bmp_finalise(bmp);
+		ldg_Free (bmp);
 
     info->_priv_data = NULL;
     if (info->_priv_load)
@@ -193,14 +199,14 @@ void CDECL decJpg_quit (IMGINFO info)
 
 /*----------------------------------------------------------------------------*/
 
-const char* CDECL decJpg_info()
+const char* CDECL decBmp_info()
 {
-  return VERSION_LIB(JPEG_LIB_VERSION_MAJOR, JPEG_LIB_VERSION_MINOR);
+  return "NetSurf's BMP decoder (based on libnsbmp 0.1.7)";
 }
 
 /*----------------------------------------------------------------------------*/
 
-void CDECL decJpg_setFastImage(BOOL set_FastImages)
+void CDECL decBmp_setFastImage(BOOL set_FastImages)
 {
   local_FastImages = set_FastImages;
 }
@@ -209,12 +215,12 @@ void CDECL decJpg_setFastImage(BOOL set_FastImages)
 
 PROC LibFunc[] =
 {
-  {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decJpg_start},
-  {"hw_dec_info", "const char * hw_dec_info();\n", decJpg_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decJpg_setFastImage},
+  {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decBmp_start},
+  {"hw_dec_info", "const char * hw_dec_info();\n", decBmp_info},
+  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decBmp_setFastImage},
 };
 
-LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "JPG decoder for HighWire", 1 } };
+LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "BMP decoder for HighWire", 1 } };
 
 int main(void)
 {

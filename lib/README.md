@@ -10,12 +10,9 @@ here: the toolchain already has it.
 | `giflib/` | 5.1.4 | <https://github.com/RajahLone/libpnggif.a> | MIT, in `COPYING` |
 | `libpng/` | 1.8.0.git | <https://github.com/pnggroup/libpng> and <https://github.com/RajahLone/libpng.a> | libpng, in `LICENSE` |
 | `jpeg/` | 10.0.0 | <https://ijg.org/> and <https://github.com/RajahLone/libjpeg.a>  | IJG, under LEGAL ISSUES in `README` |
+| `libnsbmp/` | 0.1.7 | <http://www.netsurf-browser.org/> and <https://github.com/RajahLone/libnsbmp.a>  | MIT, in `COPYING` |
 | `ldg/` | 2.35 | <https://sourceforge.net/projects/ldg/files/> | Lesser GPL in `COPYRIGHT` |
 | `mdebtls/` | 3.6.7 | <https://github.com/Mbed-TLS/mbedtls> | Apache 2.O in `LICENSE` |
-
-The tarballs are Thorsten Otto's MiNT builds, from
-<https://mikro.atari.org/tho-otto.de/mint/>. Only the headers HighWire
-includes and the three multilibs the Makefile picks are kept:
 
 - the top level, for the 68000 and any build with `FPU=0`
 - `m68020-60/`, for the 020 and up with an FPU
