@@ -2,71 +2,37 @@
 # Makefile for highwire
 #
 TARGET = highwire.prg
-DISTDIR = dist
+
+VERSION = $(shell sed -n 's/.*_HIGHWIRE_VERSION_[[:space:]]*"\([^"]*\)".*/\1/p' src/version.h)
+
+DISTDIR_68K = highwire.68k
+DISTDIR_020 = highwire.020
+DISTDIR_V4E = highwire.v4e
+
 BUILDDIR = build
+
+RELEASEDIR = releases
 
 # compiler settings
 
-CROSS = m68k-atari-mint-
+CROSSPATH=/opt/cross-mint/bin/
+CROSS = $(CROSSPATH)m68k-atari-mint-
 CC = $(CROSS)gcc -g #-DDEBUG
 AS = $(CC) -c
 LD = $(CC) 
-CP = cp
-RM = rm -f
-
-# The toolkit container has no unix2dos -- which is why the docs shipped with
-# Unix line endings for so long -- so perl converts them.  Its form is
-# idempotent, leaving an already converted file untouched.
-TODOS = perl -pi -e 's/\r?\n/\r\n/'
-ZIP = zip -r
 
 CPU = 68000
-#CPU = 68030
-#CPU = 68040
 #CPU = 68020-60
 #CPU = 5475
 
-DEFS = -DUSE_OVL -DUSE_INET -DLIBPNG -DLIBGIF -DLIBJPG
+DEFS = -DUSE_INET
 OPTFLAGS = -funsigned-char \
-       -fomit-frame-pointer -O2 -fstrength-reduce 
+       -fomit-frame-pointer -O2 -fstrength-reduce
 
 ifeq ($(CPU),5475)
 	OPTS = $(CPU:%=-mcpu=%) $(OPTFLAGS)
 else
 	OPTS = $(CPU:%=-m%) $(OPTFLAGS)
-endif
-
-# -m68020 and up select the m68020-60 multilib, which was built for a hardware
-# FPU.  Its startup code stops with "This program requires a 68881 or higher
-# arithmetic coprocessor" on a machine that hasn't got one, and a 68030 has no
-# FPU of its own -- a Falcon or TT only has one if a 68882 was fitted, and most
-# Falcons never were.  So the 030 build links the plain 68000 libraries instead.
-# HighWire does no floating point arithmetic of its own, so nothing is lost
-# except speed: the C library is then 68000 code and calls software multiply and
-# divide helpers, which costs about 20% on page rendering (measured under Hatari
-# on a Falcon and a TT, both with a 68882 fitted).
-# -msoft-float alone will not do it, as there is no soft-float 68020 multilib
-# for it to select, and libgcc has to come from the same set or libpng's gamma
-# code still reaches a hardware __fixunsdfsi.
-#
-#   FPU=1  hardware floating point libraries (faster, needs an FPU)
-#   FPU=0  soft ones -- for a 68LC040 or 68EC060, which have no FPU either
-#
-# Only the link is affected, so the two 030 builds share their object files and
-# the second one is just a relink.  dist ships both: highwire.030 runs on any
-# 030, highwire.03F is the faster one for a TT or a Falcon with a 68882.
-#
-ifeq ($(CPU),68030)
-FPU ?= 0
-else
-FPU ?= 1
-endif
-
-ifneq ($(CPU),5475)
-ifeq ($(FPU),0)
-SOFTFLOAT := -L$(dir $(shell $(CC) -m68000 -print-file-name=libc.a)) \
-             -L$(dir $(shell $(CC) -m68000 -print-libgcc-file-name))
-endif
 endif
 
 DISABLED_WARNINGS = -Wno-deprecated-declarations
@@ -77,33 +43,15 @@ WARN = \
 	-Wpointer-arith \
 	-Wcast-qual \
 	$(DISABLED_WARNINGS) \
-	-Werror 
+	-Werror \
 
-
-INCLUDE = 
-
-# Neither the toolkit image nor the FreeMiNT packages carry the image
-# libraries, so lib/ vendors them prebuilt; take the multilib that matches
-# the link.
-VENDORED = giflib libpng jpeg
-ifeq ($(FPU),0)
-MULTIDIR := .
-else
-MULTIDIR := $(shell $(CC) $(OPTS) -print-multi-directory)
-endif
-INCLUDE += $(foreach l,$(VENDORED),-Ilib/$(l)/include -Llib/$(l)/$(MULTIDIR))
-
-hash = \#
-CHECKGIF := $(shell if echo -e "$(hash)include <gif_lib.h> \\nconst char *version = GIF_LIB_VERSION" | $(CC) $(INCLUDE) -E - | grep GIF_LIB_VERSION >/dev/null; then echo -lgif; else echo -lungif; fi)
-
-CFLAGS = $(INCLUDE) $(WARN) $(OPTS) $(DEFS)
+CFLAGS = $(WARN) $(OPTS) $(DEFS)
 ASFLAGS = $(OPTS)
 LDFLAGS = -s
-LIBS = $(SOFTFLOAT) -lgem -lcflib -liio $(CHECKGIF) -ljpeg -lpng -lz -lm \
-       #-lsocket
+LIBS = -lgem -lcflib -liio -lldg
 
 ifeq ($(CPU),5475)
-        OBJDIR = $(BUILDDIR)/obj.$(CPU)
+  OBJDIR = $(BUILDDIR)/obj.$(CPU)
 else
 	OBJDIR = $(BUILDDIR)/obj$(CPU:68%=.%)
 endif
@@ -116,9 +64,6 @@ DEPDIR = $(OBJDIR)/.deps
 # The sources live in src/, so make looks for them there.  The file lists below
 # stay as bare names, which is also what the Pure C project files in src/ want.
 VPATH = src
-
-# The default build links straight into dist/, ready to copy across.
-all: $(DISTDIR)/$(TARGET)
 
 #
 # C source files
@@ -139,7 +84,7 @@ CFILES = \
 	Logging.c \
 	schedule.c \
 	mime.c \
-	ovl_sys.c \
+	mbedTLS.c \
 	inet.c \
 	http.c \
 	cache.c \
@@ -199,87 +144,146 @@ OBJS_MAGIC := $(shell mkdir -p ./$(OBJDIR) > /dev/null 2>&1 || :)
 DEPENDENCIES = $(addprefix ./$(DEPDIR)/, $(patsubst %.c,%.P,$(CFILES)))
 
 
-$(BUILDDIR)/$(TARGET) $(DISTDIR)/$(TARGET): $(OBJS)
+$(BUILDDIR)/$(TARGET) $(DISTDIR_68K)/$(TARGET): $(OBJS)
 	mkdir -p $(@D)
 	$(LD) -o $@ -Wl,-stack,128k -Wl,--mprg-flags=0x17 $(CFLAGS) $(LDFLAGS) $(OBJS) $(LIBS)
 
 000: ; $(MAKE) CPU=68000
-030: ; $(MAKE) CPU=68030
-03f: ; $(MAKE) CPU=68030 FPU=1
-040: ; $(MAKE) CPU=68040
-060: ; $(MAKE) CPU=68020-60
+020: ; $(MAKE) CPU=68020-60
 v4e: ; $(MAKE) CPU=5475
 
 clean:
 	rm -Rf *.bak */*.bak */*/*.bak *[%~] */*[%~] */*/*[%~]
 	rm -Rf $(BUILDDIR) *.o */*/*.o
-	rm -Rf *.app *.[gt]tp *.prg modules/mintnet.ovl
-
-distclean: clean
-
+	rm -Rf *.app *.[gt]tp *.prg
+	rm -Rf $(DISTDIR_68K)
+	rm -Rf $(DISTDIR_020)
+	rm -Rf $(DISTDIR_V4E)
+	rm -Rf modules/decoder.src/*,ldg
+	rm -Rf releases
 
 #
 # distribution/snapshot archive
 #
-dist::
+all::
 	$(MAKE) clean
+	
+	mkdir -p $(DISTDIR_68K)
+	mkdir -p $(DISTDIR_020)
+	mkdir -p $(DISTDIR_V4E)
+	
 	$(MAKE) CPU=68000 $(BUILDDIR)/$(TARGET)
-	mkdir -p $(DISTDIR)
-	mv $(BUILDDIR)/$(TARGET) $(DISTDIR)/highwire.000
-	$(MAKE) CPU=68030 $(BUILDDIR)/$(TARGET)
-	mv $(BUILDDIR)/$(TARGET) $(DISTDIR)/highwire.030
-	$(MAKE) CPU=68030 FPU=1 $(BUILDDIR)/$(TARGET)
-	mv $(BUILDDIR)/$(TARGET) $(DISTDIR)/highwire.03F
-	$(MAKE) CPU=68040 $(BUILDDIR)/$(TARGET)
-	mv $(BUILDDIR)/$(TARGET) $(DISTDIR)/highwire.040
+	mv $(BUILDDIR)/$(TARGET) $(DISTDIR_68K)/highwire.prg
 	$(MAKE) CPU=68020-60 $(BUILDDIR)/$(TARGET)
-	mv $(BUILDDIR)/$(TARGET) $(DISTDIR)/highwire.060
+	mv $(BUILDDIR)/$(TARGET) $(DISTDIR_020)/highwire.prg
 	$(MAKE) CPU=5475 $(BUILDDIR)/$(TARGET)
-	mv $(BUILDDIR)/$(TARGET) $(DISTDIR)/highwire.v4e
-	cp -a rsc/deskicon.rsc rsc/highwire.rsc $(DISTDIR)
-	mkdir -p $(DISTDIR)/doc
-	cp -a docs/HIGHWIRE.DOC docs/hotkeys.txt $(DISTDIR)/doc
-	cp -a lib/giflib/COPYING $(DISTDIR)/doc/giflib.txt
-	cp -a lib/libpng/LICENSE $(DISTDIR)/doc/libpng.txt
-	cp -a lib/jpeg/README $(DISTDIR)/doc/libjpeg.txt
-	cp -a Change.Log LICENSE $(DISTDIR)
-	mkdir -p $(DISTDIR)/html
-	cp -pvr html/. $(DISTDIR)/html
-	mkdir -p $(DISTDIR)/modules
-	$(MAKE) -C modules/network.src clean
-	$(MAKE) -C modules/network.src sting stik2
-	$(MAKE) -C modules/network.src clean
-	$(MAKE) -C modules/network.src CPU=5475
-	cp -a modules/mintnet.ovl $(DISTDIR)/modules/mintnet.v4e
-	$(MAKE) -C modules/network.src CPU=68000
-	cp -a modules/mintnet.ovl $(DISTDIR)/modules
-	cp -a modules/README.TXT modules/iconnect.ovl modules/magicnet.ovl modules/stik2.ovl modules/sting.ovl $(DISTDIR)/modules
-#	iconnect.ovl and magicnet.ovl above are still prebuilt binaries; the rest
-#	were built here.
-	mkdir -p $(DISTDIR)/example.cfg
-	cp -a example.cfg/highwire.cfg $(DISTDIR)/example.cfg
-#	Ready to run on the machine most people have, without renaming anything
-#	first: the 68000 build as HIGHWIRE.PRG, and STinG as the network module.
-#	Both are copies, so the other builds and stacks are still there to swap in.
-	cp -a $(DISTDIR)/highwire.000 $(DISTDIR)/highwire.prg
-	cp -a modules/sting.ovl $(DISTDIR)/modules/network.ovl
-	$(TODOS) $(DISTDIR)/doc/HIGHWIRE.DOC $(DISTDIR)/doc/hotkeys.txt $(DISTDIR)/doc/giflib.txt $(DISTDIR)/doc/libpng.txt $(DISTDIR)/doc/libjpeg.txt $(DISTDIR)/modules/README.TXT $(DISTDIR)/Change.Log $(DISTDIR)/LICENSE $(DISTDIR)/example.cfg/highwire.cfg
-	(cwd=`pwd`; cd $(DISTDIR); $(ZIP) "$$cwd"/$(BUILDDIR)/hw`date +%y%m%d`.zip .)
+	mv $(BUILDDIR)/$(TARGET) $(DISTDIR_V4E)/highwire.prg
 
-#
-# the snapshot release: dist's archive under the names the release carries
-#
-# The names are fixed rather than taken from the repository: the readme links
-# to highwire-latest.zip, and a download URL resolves by asset name.  The dated
-# copy accumulates on the release, one per day.  The workflow uploads whatever
-# lands in build/release, so the two cannot drift apart.
-VERSION = $(shell sed -n 's/.*_HIGHWIRE_VERSION_[[:space:]]*"\([^"]*\)".*/\1/p' src/version.h)
+	cp -a rsc/deskicon.rsc rsc/highwire.rsc $(DISTDIR_68K)
+	cp -a rsc/deskicon.rsc rsc/highwire.rsc $(DISTDIR_020)
+	cp -a rsc/deskicon.rsc rsc/highwire.rsc $(DISTDIR_V4E)
 
-release: dist
-	test -n "$(VERSION)"
-	mkdir -p $(BUILDDIR)/release
-	cp $(BUILDDIR)/hw*.zip $(BUILDDIR)/release/highwire-$(VERSION)-`date +%Y%m%d`.zip
-	cp $(BUILDDIR)/hw*.zip $(BUILDDIR)/release/highwire-latest.zip
+	mkdir -p $(DISTDIR_68K)/doc
+	cp -a change.log $(DISTDIR_68K)/doc
+	cp -a docs/highwire.txt $(DISTDIR_68K)/doc
+	cp -a docs/hotkeys.txt $(DISTDIR_68K)/doc
+	mkdir -p $(DISTDIR_68K)/doc/archives
+	cp -a docs/compile.old $(DISTDIR_68K)/doc/archives/compile.txt
+	cp -a docs/history1.txt $(DISTDIR_68K)/doc/archives
+	cp -a docs/history2.txt $(DISTDIR_68K)/doc/archives
+	mkdir -p $(DISTDIR_68K)/doc/licenses
+	cp -a lib/giflib/COPYING $(DISTDIR_68K)/doc/licenses/giflib.txt
+	cp -a lib/libpng/LICENSE $(DISTDIR_68K)/doc/licenses/libpng.txt
+	cp -a lib/jpeg/README $(DISTDIR_68K)/doc/licenses/libjpeg.txt
+	cp -a lib/libnsbmp/COPYING $(DISTDIR_68K)/doc/licenses/libnsbmp.txt
+	cp -a LICENSE $(DISTDIR_68K)/doc/licenses/highwire.txt
+	
+	mkdir -p $(DISTDIR_68K)/html
+	cp -pvr html/. $(DISTDIR_68K)/html
+	
+	mkdir -p $(DISTDIR_68K)/example.cfg
+	cp -a example.cfg/highwire.cfg $(DISTDIR_68K)/example.cfg
+
+	cp -a $(DISTDIR_68K)/doc $(DISTDIR_68K)/html $(DISTDIR_68K)/example.cfg $(DISTDIR_020)
+	cp -a $(DISTDIR_68K)/doc $(DISTDIR_68K)/html $(DISTDIR_68K)/example.cfg $(DISTDIR_V4E)
+
+	$(MAKE) -C modules/network.src clean
+
+	mkdir -p $(DISTDIR_68K)/modules
+	cp -a modules/readme.txt $(DISTDIR_68K)/modules/readme.txt
+	
+	$(MAKE) -C modules/network.src CPU=68000 LDG_TYPE=USE_MINTNET
+	mv modules/network.src/network.ldg $(DISTDIR_68K)/modules/mintnet.ldg
+	$(MAKE) -C modules/network.src CPU=68000 sting
+	mv modules/network.src/network.ldg $(DISTDIR_68K)/modules/sting.ldg
+	$(MAKE) -C modules/network.src CPU=68000 LDG_TYPE=USE_MAGICNET
+	mv modules/network.src/network.ldg $(DISTDIR_68K)/modules/magxnet.ldg
+	# ICONNECT module must be made with PureC
+	cp modules/network.src/iconnect.ldg $(DISTDIR_68K)/modules/iconnect.ldg
+
+	mkdir -p $(DISTDIR_020)/modules
+	cp -a modules/readme.txt $(DISTDIR_020)/modules/readme.txt
+
+	$(MAKE) -C modules/network.src CPU=68020-60 LDG_TYPE=USE_MINTNET
+	mv modules/network.src/network.ldg $(DISTDIR_020)/modules/mintnet.ldg
+	$(MAKE) -C modules/network.src CPU=68020-60 sting
+	mv modules/network.src/network.ldg $(DISTDIR_020)/modules/sting.ldg
+	$(MAKE) -C modules/network.src CPU=68020-60 LDG_TYPE=USE_MAGICNET
+	mv modules/network.src/network.ldg $(DISTDIR_020)/modules/magxnet.ldg
+	# ICONNECT module must be made with PureC
+	cp modules/network.src/iconnect.ldg $(DISTDIR_020)/modules/iconnect.ldg
+
+	mkdir -p $(DISTDIR_V4E)/modules
+	cp -a modules/readme.txt $(DISTDIR_V4E)/modules/readme.txt
+
+	$(MAKE) -C modules/network.src CPU=5475 LDG_TYPE=USE_MINTNET
+	mv modules/network.src/network.ldg $(DISTDIR_V4E)/modules/mintnet.ldg
+	$(MAKE) -C modules/network.src CPU=5475 sting
+	mv modules/network.src/network.ldg $(DISTDIR_V4E)/modules/sting.ldg
+
+	$(MAKE) -C modules/decoder.src CPU=68000 img_gif
+	mv modules/decoder.src/imgd-gif.ldg $(DISTDIR_68K)/modules/imgd-gif.ldg
+	$(MAKE) -C modules/decoder.src CPU=68000 img_ico
+	mv modules/decoder.src/imgd-ico.ldg $(DISTDIR_68K)/modules/imgd-ico.ldg
+	$(MAKE) -C modules/decoder.src CPU=68000 img_jpg
+	mv modules/decoder.src/imgd-jpg.ldg $(DISTDIR_68K)/modules/imgd-jpg.ldg
+	$(MAKE) -C modules/decoder.src CPU=68000 img_png
+	mv modules/decoder.src/imgd-png.ldg $(DISTDIR_68K)/modules/imgd-png.ldg
+	$(MAKE) -C modules/decoder.src CPU=68000 img_xbm
+	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_68K)/modules/imgd-xbm.ldg
+	$(MAKE) -C modules/decoder.src CPU=68000 img_bmp
+	mv modules/decoder.src/imgd-bmp.ldg $(DISTDIR_68K)/modules/imgd-bmp.ldg
+
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_gif
+	mv modules/decoder.src/imgd-gif.ldg $(DISTDIR_020)/modules/imgd-gif.ldg
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_ico
+	mv modules/decoder.src/imgd-ico.ldg $(DISTDIR_020)/modules/imgd-ico.ldg
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_jpg
+	mv modules/decoder.src/imgd-jpg.ldg $(DISTDIR_020)/modules/imgd-jpg.ldg
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_png
+	mv modules/decoder.src/imgd-png.ldg $(DISTDIR_020)/modules/imgd-png.ldg
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_xbm
+	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_020)/modules/imgd-xbm.ldg
+	$(MAKE) -C modules/decoder.src CPU=68020-60 img_bmp
+	mv modules/decoder.src/imgd-bmp.ldg $(DISTDIR_020)/modules/imgd-bmp.ldg
+
+	$(MAKE) -C modules/decoder.src CPU=5475 img_gif
+	mv modules/decoder.src/imgd-gif.ldg $(DISTDIR_V4E)/modules/imgd-gif.ldg
+	$(MAKE) -C modules/decoder.src CPU=5475 img_ico
+	mv modules/decoder.src/imgd-ico.ldg $(DISTDIR_V4E)/modules/imgd-ico.ldg
+	$(MAKE) -C modules/decoder.src CPU=5475 img_jpg
+	mv modules/decoder.src/imgd-jpg.ldg $(DISTDIR_V4E)/modules/imgd-jpg.ldg
+	$(MAKE) -C modules/decoder.src CPU=5475 img_png
+	mv modules/decoder.src/imgd-png.ldg $(DISTDIR_V4E)/modules/imgd-png.ldg
+	$(MAKE) -C modules/decoder.src CPU=5475 img_xbm
+	mv modules/decoder.src/imgd-xbm.ldg $(DISTDIR_V4E)/modules/imgd-xbm.ldg
+	$(MAKE) -C modules/decoder.src CPU=5475 img_bmp
+	mv modules/decoder.src/imgd-bmp.ldg $(DISTDIR_V4E)/modules/imgd-bmp.ldg
+
+	mkdir -p $(RELEASEDIR)
+	(cwd=`pwd`; cd $(DISTDIR_68K); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-68k.zip . -x "*/.DS_Store" -x "__MACOSX")
+	(cwd=`pwd`; cd $(DISTDIR_020); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-020.zip . -x "*/.DS_Store" -x "__MACOSX")
+	(cwd=`pwd`; cd $(DISTDIR_V4E); zip -r "$$cwd"/$(RELEASEDIR)/highwire-`date +%Y%m%d`-v4e.zip . -x "*/.DS_Store" -x "__MACOSX")
 
 #
 # dependencies

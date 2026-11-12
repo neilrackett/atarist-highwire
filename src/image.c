@@ -19,7 +19,7 @@
 # include <osbind.h>
 #endif
 #include "Logging.h"
-#include "image_P.h"
+#include "img-dcdr.h"
 #include "Location.h"
 #include "Containr.h"
 #include "schedule.h"

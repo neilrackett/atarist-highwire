@@ -22,6 +22,7 @@ static const struct ext_2_mime mime_list[] = {
 	{ "htm",   MIME_TXT_HTML,   NULL       },
 	{ "html",  MIME_TXT_HTML,   NULL       },
 	{ "ico",   MIME_IMG_X_ICON, NULL       },
+	{ "bmp",   MIME_IMG_X_BMP,  NULL       },
 	{ "jpeg",  MIME_IMG_JPEG,   NULL       },
 	{ "jpg",   MIME_IMG_JPEG,   NULL       },
 	{ "jpe",   MIME_IMG_JPEG,   NULL       },
@@ -49,6 +50,7 @@ static const struct mime_2_ext ext_list[] = {
 	{ MIME_IMG_X_XBM, "xbm" },
 	{ MIME_IMG_X_XPM, "xpm" },
 	{ MIME_IMG_X_ICON,"ico" },
+	{ MIME_IMG_X_BMP, "bmp" },
 	{ MIME_AUD_BASIC, "au"  },
 	{ MIME_AUD_MPEG,  "mp3" },
 	{ MIME_AUD_X_WAV, "wav" }
@@ -129,9 +131,10 @@ mime_byString (const char * str, const char ** tail)
 		{ "jpeg", MIME_IMG_JPEG   },
 		{ "gif",  MIME_IMG_GIF    },
 		{ "png",  MIME_IMG_PNG    },
-		{ "jpeg", MIME_IMG_X_XBM  },
-		{ "gif",  MIME_IMG_X_XPM  },
+		{ "xbm",  MIME_IMG_X_XBM  },
+		{ "xpm",  MIME_IMG_X_XPM  },
 		{ "ico",  MIME_IMG_X_ICON },
+		{ "bmp",  MIME_IMG_X_BMP  },
 		{ NULL, }
 	},
 	aud_types[] = {
