@@ -38,10 +38,10 @@ static void *bitmap_create(int width, int height, unsigned int state)
 	/* Ensure a stupidly large bitmap is not created */
 	if (width > 4096 || height > 4096) { return NULL; }
   
-  return ldg_Calloc(width * height, BYTES_PER_PIXEL);
+  return (void *)ldg_Calloc(width * height, BYTES_PER_PIXEL);
 }
 
-static unsigned char *bitmap_get_buffer(void *bitmap) { if (bitmap) { return bitmap; } return NULL; }
+static unsigned char *bitmap_get_buffer(void *bitmap) { if (bitmap) { return (unsigned char *)bitmap; } return NULL; }
 
 static void bitmap_destroy(void *bitmap) { if (bitmap) { ldg_Free(bitmap); } }
 
@@ -70,7 +70,7 @@ BOOL CDECL decBmp_start (IMGINFO info, void * errfunc)
   
   local_errprintf = errfunc;
  
-  bmp_image *bmp = ldg_Calloc (1, sizeof(struct bmp_image));
+  struct bmp_image *bmp = (struct bmp_image *)ldg_Malloc (sizeof(struct bmp_image));
  
   if (bmp == NULL) { warning("bmp_image_alloc", BMP_INSUFFICIENT_MEMORY); res = FALSE; goto cleanup; }
 
@@ -79,8 +79,8 @@ BOOL CDECL decBmp_start (IMGINFO info, void * errfunc)
   code = bmp_analyse(bmp, (size_t)info->_priv_size, info->_priv_load);
   if (code != BMP_OK) { warning("bmp_analyse", code); res = FALSE; goto cleanup; }
 
-  //code = bmp_decode(bmp);
-  code = bmp_decode_trans(bmp, TRANSPARENT_COLOR);
+  code = bmp_decode(bmp);
+  //code = bmp_decode_trans(bmp, TRANSPARENT_COLOR);
 
   if (code != BMP_OK)
   {
@@ -112,7 +112,10 @@ BOOL CDECL decBmp_start (IMGINFO info, void * errfunc)
   //info->Interlace  = 0;
 	
 cleanup:
-  if (!res) { bmp_finalise(bmp); }
+  if (!res)
+  {
+    if (bmp) { bmp_finalise(bmp); ldg_Free (bmp); }
+  }
  
   return res;
 }
@@ -159,7 +162,7 @@ void blend_row (IMGINFO info, CHAR * row)
 /*----------------------------------------------------------------------------*/
 BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer)
 {
-  bmp_image *bmp = info->_priv_data;
+  bmp_image *bmp = (bmp_image *)info->_priv_data;
   
   if (!bmp) { return FALSE; }
   if (bmp_line_read >= bmp->height) { return FALSE; }
@@ -181,7 +184,7 @@ BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer)
 /*----------------------------------------------------------------------------*/
 void CDECL decBmp_quit (IMGINFO info)
 {
-  bmp_image *bmp = info->_priv_data;
+  bmp_image *bmp = (bmp_image *)info->_priv_data;
 	if (bmp)
   {
     bmp_finalise(bmp);
@@ -217,7 +220,7 @@ PROC LibFunc[] =
 {
   {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decBmp_start},
   {"hw_dec_info", "const char * hw_dec_info();\n", decBmp_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decBmp_setFastImage},
+  {"hw_set_fast", "void hw_set_fast(BOOL set_FastImages);\n", decBmp_setFastImage},
 };
 
 LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "BMP decoder for HighWire", 1 } };

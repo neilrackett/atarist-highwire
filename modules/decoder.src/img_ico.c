@@ -10,7 +10,11 @@
 
 #include <libnsbmp.h>
 
+/* Currently the library returns the data in RGBA format,
+ * so there are 4 bytes per pixel */
 #define BYTES_PER_PIXEL sizeof(ULONG)
+
+/* White with alpha masking. */
 #define TRANSPARENT_COLOR 0xffffffff
 
 
@@ -22,26 +26,23 @@ static void *bitmap_create(int width, int height, unsigned int state);
 static unsigned char *bitmap_get_buffer(void *bitmap);
 static void bitmap_destroy(void *bitmap);
 
-BOOL CDECL decBmp_start (IMGINFO info, void * errfunc);
+BOOL CDECL decIco_start (IMGINFO info, void * errfunc);
 void CDECL blend_row (IMGINFO info, CHAR * row);
-BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer);
-void CDECL decBmp_quit (IMGINFO info);
-const char* CDECL decBmp_info(void);
-void CDECL decBmp_setFastImage(BOOL set_FastImages);
+BOOL CDECL decIco_read (IMGINFO info, CHAR * buffer);
+void CDECL decIco_quit (IMGINFO info);
+const char* CDECL decIco_info(void);
+void CDECL decIco_setFastImage(BOOL set_FastImages);
 
 
 /*----------------------------------------------------------------------------*/
 
 static void *bitmap_create(int width, int height, unsigned int state)
 {
-  (void) state;
-	/* Ensure a stupidly large bitmap is not created */
-	if (width > 4096 || height > 4096) { return NULL; }
-  
-  return ldg_Calloc(width * height, BYTES_PER_PIXEL);
+  (void)state;
+  return (void *)ldg_Calloc(width * height, BYTES_PER_PIXEL);
 }
 
-static unsigned char *bitmap_get_buffer(void *bitmap) { if (bitmap) { return bitmap; } return NULL; }
+static unsigned char *bitmap_get_buffer(void *bitmap) { if (bitmap) { return (unsigned char *)bitmap; } return NULL; }
 
 static void bitmap_destroy(void *bitmap) { if (bitmap) { ldg_Free(bitmap); } }
 
@@ -61,42 +62,49 @@ static bmp_bitmap_callback_vt bitmap_callbacks = { bitmap_create, bitmap_destroy
 static UWORD bmp_line_read;
 
 /*----------------------------------------------------------------------------*/
-BOOL CDECL decBmp_start (IMGINFO info, void * errfunc)
+BOOL CDECL decIco_start (IMGINFO info, void * errfunc)
 {
 	BOOL       res  = TRUE;
   bmp_result code = BMP_OK;
-  
+  struct bmp_image *tmp;
   bmp_line_read = 0;
   
   local_errprintf = errfunc;
  
-  bmp_image *bmp = ldg_Calloc (1, sizeof(struct bmp_image));
- 
-  if (bmp == NULL) { warning("bmp_image_alloc", BMP_INSUFFICIENT_MEMORY); res = FALSE; goto cleanup; }
+  struct ico_collection *ico = (struct ico_collection *)ldg_Malloc (sizeof(struct ico_collection));
+  struct bmp_image      *bmp = (struct bmp_image      *)ldg_Malloc (sizeof(struct bmp_image));
 
-  bmp_create(bmp, &bitmap_callbacks);
+  if (ico == NULL || bmp == NULL) { warning("ico_image_allocs", BMP_INSUFFICIENT_MEMORY); res = FALSE; goto cleanup; }
 
-  code = bmp_analyse(bmp, (size_t)info->_priv_size, info->_priv_load);
-  if (code != BMP_OK) { warning("bmp_analyse", code); res = FALSE; goto cleanup; }
+  ico_collection_create(ico, &bitmap_callbacks);
 
-  //code = bmp_decode(bmp);
-  code = bmp_decode_trans(bmp, TRANSPARENT_COLOR);
+  code = ico_analyse(ico, (size_t)info->_priv_size, info->_priv_load);
+  if (code != BMP_OK) { warning("ico_analyse", code); res = FALSE; goto cleanup; }
+
+  tmp = ico_find(ico, info->WantW ? info->WantW : 255, info->WantH ? info->WantH : 255);
+  if (tmp == NULL) { warning("ico_find_with_size", BMP_DATA_ERROR); res = FALSE; goto cleanup; }
+  
+  memcpy(bmp, tmp, sizeof(struct bmp_image));
+
+  code = bmp_decode(bmp);
+  //code = bmp_decode_trans(bmp, TRANSPARENT_COLOR);
 
   if (code != BMP_OK)
   {
-    warning("bmp_decode", code);
+    warning("ico_bmp_decode", code);
     /* allow partially decoded images */
     if ((code != BMP_INSUFFICIENT_DATA) && (code != BMP_DATA_ERROR)) { res = FALSE; goto cleanup; }
   }
 
-#ifdef BMP_DBG
-  local_errprintf("bmp size: %d x %d px\n", bmp->width, bmp->height);
+#ifdef ICO_DBG
+  local_errprintf("ico size: %d x %d px\n", bmp->width, bmp->height);
+  local_errprintf("ico opaque: %s\n", bmp->opaque ? "yes" : "no");
 #endif
 
-	info->_priv_data = bmp;
-  //info->_priv_more = NULL;
-	info->read       = decBmp_read;
-	info->quit       = decBmp_quit;
+	info->_priv_data = ico;
+  info->_priv_more = bmp;
+	info->read       = decIco_read;
+	info->quit       = decIco_quit;
 	info->ImgWidth   = bmp->width;
 	info->ImgHeight  = bmp->height;
 	info->BitDepth   = 8;
@@ -112,7 +120,11 @@ BOOL CDECL decBmp_start (IMGINFO info, void * errfunc)
   //info->Interlace  = 0;
 	
 cleanup:
-  if (!res) { bmp_finalise(bmp); }
+  if (!res)
+  {
+    if (ico) { ico_finalise(ico); ldg_Free (ico); }
+    if (bmp) { ldg_Free (bmp); }
+  }
  
   return res;
 }
@@ -157,9 +169,9 @@ void blend_row (IMGINFO info, CHAR * row)
 }
 
 /*----------------------------------------------------------------------------*/
-BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer)
+BOOL CDECL decIco_read (IMGINFO info, CHAR * buffer)
 {
-  bmp_image *bmp = info->_priv_data;
+  bmp_image *bmp = info->_priv_more;
   
   if (!bmp) { return FALSE; }
   if (bmp_line_read >= bmp->height) { return FALSE; }
@@ -179,14 +191,15 @@ BOOL CDECL decBmp_read (IMGINFO info, CHAR * buffer)
 }
 
 /*----------------------------------------------------------------------------*/
-void CDECL decBmp_quit (IMGINFO info)
+void CDECL decIco_quit (IMGINFO info)
 {
-  bmp_image *bmp = info->_priv_data;
-	if (bmp)
+  ico_collection *ico = info->_priv_data;
+	if (ico)
   {
-    bmp_finalise(bmp);
-		ldg_Free (bmp);
-
+    ico_finalise(ico);
+		ldg_Free(ico);
+    if (info->_priv_more) { ldg_Free(info->_priv_more); }
+    
     info->_priv_data = NULL;
     if (info->_priv_load)
     {
@@ -199,14 +212,14 @@ void CDECL decBmp_quit (IMGINFO info)
 
 /*----------------------------------------------------------------------------*/
 
-const char* CDECL decBmp_info()
+const char* CDECL decIco_info()
 {
-  return "NetSurf's BMP decoder (based on libnsbmp 0.1.7)";
+  return "NetSurf's ICO decoder (based on libnsbmp 0.1.7)";
 }
 
 /*----------------------------------------------------------------------------*/
 
-void CDECL decBmp_setFastImage(BOOL set_FastImages)
+void CDECL decIco_setFastImage(BOOL set_FastImages)
 {
   local_FastImages = set_FastImages;
 }
@@ -215,12 +228,12 @@ void CDECL decBmp_setFastImage(BOOL set_FastImages)
 
 PROC LibFunc[] =
 {
-  {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decBmp_start},
-  {"hw_dec_info", "const char * hw_dec_info();\n", decBmp_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decBmp_setFastImage},
+  {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decIco_start},
+  {"hw_dec_info", "const char * hw_dec_info();\n", decIco_info},
+  {"hw_set_fast", "void hw_set_fast(BOOL set_FastImages);\n", decIco_setFastImage},
 };
 
-LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "BMP decoder for HighWire", 1 } };
+LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "ICO decoder for HighWire", 1 } };
 
 int main(void)
 {

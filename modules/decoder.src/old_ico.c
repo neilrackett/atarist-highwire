@@ -447,7 +447,7 @@ PROC LibFunc[] =
 {
   {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decIco_start},
   {"hw_dec_info", "const char * hw_dec_info();\n", decIco_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decIco_setFastImage},
+  {"hw_set_fast", "void hw_set_fast(BOOL set_FastImages);\n", decIco_setFastImage},
 };
 
 LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "ICO decoder for HighWire", 1 } };

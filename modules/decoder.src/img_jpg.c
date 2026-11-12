@@ -20,8 +20,6 @@
 typedef struct jpeg_decompress_struct * JPEG_DEC;
 typedef struct jpeg_error_mgr         * JPEG_ERR;
 
-BOOL local_FastImages = FALSE;
-
 void (*local_errprintf)(const char *s, ...);
 
 static void _jpeg_errmsg (j_common_ptr cinfo, int msg_level);
@@ -31,7 +29,7 @@ BOOL CDECL decJpg_start (IMGINFO info, void * errfunc);
 BOOL CDECL decJpg_read (IMGINFO info, CHAR * buffer);
 void CDECL decJpg_quit (IMGINFO info);
 const char* CDECL decJpg_info(void);
-void CDECL decJpg_setFastImage(BOOL set_FastImages);
+void CDECL decJpg_dummy(void);
 
 
 /*----------------------------------------------------------------------------*/
@@ -200,10 +198,7 @@ const char* CDECL decJpg_info()
 
 /*----------------------------------------------------------------------------*/
 
-void CDECL decJpg_setFastImage(BOOL set_FastImages)
-{
-  local_FastImages = set_FastImages;
-}
+void CDECL decJpg_dummy(void) { }
 
 /*----------------------------------------------------------------------------*/
 
@@ -211,7 +206,7 @@ PROC LibFunc[] =
 {
   {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info, void * errfunc);\n", decJpg_start},
   {"hw_dec_info", "const char * hw_dec_info();\n", decJpg_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decJpg_setFastImage},
+  {"hw_set_fast", "void hw_set_fast(BOOL set_FastImages);\n", decJpg_dummy},
 };
 
 LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "JPG decoder for HighWire", 1 } };

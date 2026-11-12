@@ -11,6 +11,7 @@
 
 #define TYPE_XBM   ((((((long)'X' <<8) | 'B') <<8) | 'M') <<8)
 #define TYPE_XPM   ((((((long)'X' <<8) | 'P') <<8) | 'M') <<8)
+
 typedef struct s_xmap {
 	ULONG   Type;
 	ULONG * PixChrs;
@@ -20,8 +21,6 @@ typedef struct s_xmap {
 	char    Buffer[1024];
 } * XMAP;
 
-BOOL local_FastImages = FALSE;
-
 void (*local_errprintf)(const char *s, ...);
 
 BOOL CDECL decXbm_start (IMGINFO info, void * errfunc);
@@ -29,7 +28,7 @@ BOOL CDECL decXbm_r_bit (IMGINFO info, CHAR * buffer);
 BOOL CDECL decXbm_r_pix (IMGINFO info, CHAR * buffer);
 void  CDECL decXbm_quit (IMGINFO info);
 const char* CDECL decXbm_info(void);
-void CDECL decXbm_setFastImage(BOOL set_FastImages);
+void CDECL decXbm_dummy(void);
 
 /*----------------------------------------------------------------------------*/
 
@@ -407,10 +406,7 @@ const char* CDECL decXbm_info()
 
 /*----------------------------------------------------------------------------*/
 
-void CDECL decXbm_setFastImage(BOOL set_FastImages)
-{
-  local_FastImages = set_FastImages;
-}
+void CDECL decXbm_dummy(void) { }
 
 /*----------------------------------------------------------------------------*/
 
@@ -418,7 +414,7 @@ PROC LibFunc[] =
 {
   {"hw_dec_open", "BOOL hw_dec_open(IMGINFO info);\n", decXbm_start},
   {"hw_dec_info", "const char * hw_dec_info();\n", decXbm_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decXbm_setFastImage},
+  {"hw_set_fast", "void hw_set_fast(BOOL set_FastImages);\n", decXbm_dummy},
 };
 
 LDGLIB LibLdg[] = { { 0x0001, 3, LibFunc,  "XBM/XPM decoder for HighWire", 1 } };

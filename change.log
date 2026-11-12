@@ -3,7 +3,6 @@ some ideas to work on:
   were with cache saving, Dopendir, stat conflict, etc).
 - HYP documentation (at least for keys shortcuts).
 - remove PureC and LatticeC parts?
-- ICO decoder: replace HW's code by NetSurf's libnsbmp.
 - favicon.ico for bookmarks?
 - add SVG decoder (candidate: PlutoVG+PlutoSVG).
 - crash with bullet <ul><li/></ul> and Life speedo font.
@@ -11,6 +10,11 @@ some ideas to work on:
 - if animation display is achieved, next on webp?
 - study HTTP and CSS NetSurf's libraries (possible port?).
 
+
+Acheived for next release:
+
+  - ICO decoder updated and using NetSurf's libnsbmp.
+  - BMP decoder added thanks to NetSurf's libnsbmp.
 
 Changes 0.4.9 (fork-20261110, unofficial, nicknamed "HughWire")
 

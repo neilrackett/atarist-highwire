@@ -16,7 +16,7 @@ struct s_img_info {
 	void          * _priv_data; /* decoder private data */
 	void          * _priv_more;
 	unsigned char * _priv_load;
-	unsigned int    _priv_size;
+	ULONG           _priv_size;
 	BOOL            (*read)(IMGINFO i, CHAR * buffer);
 	void            (*quit)(IMGINFO i);
 	UWORD           ImgWidth, ImgHeight; /* original size of the image */

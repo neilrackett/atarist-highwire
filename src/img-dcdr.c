@@ -64,9 +64,9 @@ IMGINFO get_decoder (const char * file, UWORD want_w, UWORD want_h)
           }
           if (found->libimg)
           {
-            if (found == &_decoder_png)
+            if ((found == &_decoder_png) || (found == &_decoder_bmp) || (found == &_decoder_ico))
             {
-              found->set = ldg_find("hw_set_fast_image", found->libimg);
+              found->set = ldg_find("hw_set_fast", found->libimg);
               if (found->set) { (*found->set)(cfg_FastImages); }
             }
 
@@ -94,9 +94,9 @@ IMGINFO get_decoder (const char * file, UWORD want_w, UWORD want_h)
           }
           if (decoder->libimg)
           {
-            if (decoder == &_decoder_png)
+            if ((decoder == &_decoder_png) || (found == &_decoder_bmp) || (found == &_decoder_ico))
             {
-              decoder->set = ldg_find("hw_set_fast_image", decoder->libimg);
+              decoder->set = ldg_find("hw_set_fast", decoder->libimg);
               if (decoder->set) { (*decoder->set)(cfg_FastImages); }
             }
 
@@ -136,14 +136,14 @@ void * decoder_load_image(IMGINFO info, const char * image_file)
     
     if (len > 0)
     {
-      ptr = (void *)ldg_Calloc(1, (LONG)(len + (size_t)256));
+      ptr = (unsigned char *)ldg_Calloc(1, (LONG)(len + (size_t)256));
 
       if (ptr)
       {
         if (fread(ptr, sizeof(CHAR), len, f) == len)
         {
           info->_priv_load = ptr;
-          info->_priv_size = (unsigned int)len;
+          info->_priv_size = (ULONG)len;
         }
         else
         {

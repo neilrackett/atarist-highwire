@@ -15,15 +15,13 @@
 #define STRINGIFY(x) #x
 #define VERSION_LIB(A,B,C) "LibGIF decoder " STRINGIFY(A) "." STRINGIFY(B) "." STRINGIFY(C) " (The GIFLIB project)"
 
-BOOL local_FastImages = FALSE;
-
 void (*local_errprintf)(const char *s, ...);
 
 BOOL CDECL decGif_start (IMGINFO info, void * errfunc);
 BOOL CDECL decGif_read (IMGINFO info, CHAR * buffer);
 void CDECL decGif_quit (IMGINFO info);
 const char* CDECL decGif_info(void);
-void CDECL decGif_setFastImage(BOOL set_FastImages);
+void CDECL decGif_dummy(void);
 
 
 /*----------------------------------------------------------------------------*/
@@ -221,10 +219,7 @@ const char* CDECL decGif_info()
 
 /*----------------------------------------------------------------------------*/
 
-void decGif_setFastImage(BOOL set_FastImages)
-{
-  local_FastImages = set_FastImages;
-}
+void decGif_dummy(void) { }
 
 /*----------------------------------------------------------------------------*/
 
@@ -232,7 +227,7 @@ PROC LibFunc[] =
 {
   {"hw_dec_open", "BOOL hw_dec_start(IMGINFO info);\n", decGif_start},
   {"hw_dec_info", "const char * hw_dec_info();\n", decGif_info},
-  {"hw_set_fast_image", "void hw_set_fast_image(BOOL set_FastImages);\n", decGif_setFastImage},
+  {"hw_set_fast", "void hw_set_fast(BOOL set_FastImages);\n", decGif_dummy},
 };
 
 LDGLIB LibLdg[] = { { 0x0001,  3, LibFunc,  "GIF decoder for HighWire", 1 } };
